@@ -294,7 +294,9 @@ command options."
   :type 'integer)
 
 (defcustom consult-preview-excluded-hooks
-  '(epa-file-find-file-hook recentf-track-opened-file)
+  '(epa-file-find-file-hook
+    recentf-track-opened-file
+    vc-refresh-state)
   "List of `find-file' hooks, which should not be executed during file preview.
 In particular we don't want to modify the list of recent files and we
 don't want to see epa password prompts."
@@ -922,6 +924,7 @@ MARKER is the cursor position."
                                 (seq-remove (lambda (x) (memq x consult-preview-excluded-hooks))
                                             (default-value 'find-file-hook)))
                                (inhibit-message t)
+                               (non-essential t)
                                (enable-dir-local-variables nil)
                                (enable-local-variables (and enable-local-variables :safe))
                                (buf (find-file-noselect
