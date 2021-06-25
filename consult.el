@@ -1473,8 +1473,6 @@ The DEBOUNCE delay defaults to `consult-async-input-debounce'."
   (let ((input "") (last) (timer))
     (lambda (action)
       (pcase action
-        ('setup
-         (funcall async 'setup))
         ((pred stringp)
          (unless (string= action input)
            (when timer
@@ -2810,7 +2808,8 @@ If no MODES are specified, use currently active major and minor modes."
   (consult--lookup-member
    nil kill-ring
    (consult--read
-    (consult--remove-dups kill-ring)
+    (consult--remove-dups
+     (or kill-ring (user-error "Kill ring is empty")))
     :prompt "Yank from kill-ring: "
     :history t ;; disable history
     :sort nil
