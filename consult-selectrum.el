@@ -31,8 +31,10 @@
 (defvar selectrum-highlight-candidates-function)
 (defvar selectrum-is-active)
 (defvar selectrum-refine-candidates-function)
+(defvar selectrum--history-hash)
 (declare-function selectrum-exhibit "ext:selectrum")
 (declare-function selectrum-get-current-candidate "ext:selectrum")
+(declare-function selectrum-select-current-candidate "ext:selectrum")
 
 (defun consult-selectrum--filter-adv (orig pattern cands category highlight)
   "Advice for ORIG `consult--completion-filter' function.
@@ -56,13 +58,14 @@ See `consult--completion-filter' for arguments PATTERN, CANDS, CATEGORY and HIGH
   "Return current selectrum candidate."
   (and selectrum-is-active (selectrum-get-current-candidate)))
 
-(defun consult-selectrum--refresh ()
-  "Refresh selectrum view."
+(defun consult-selectrum--refresh (&optional reset)
+  "Refresh completion UI, keep current candidate unless RESET is non-nil."
   (when selectrum-is-active
-    (if consult--narrow
-        (setq-local selectrum-default-value-format nil)
-      (kill-local-variable 'selectrum-default-value-format))
-    (selectrum-exhibit 'keep-selected)))
+    (when consult--narrow
+      (setq-local selectrum-default-value-format nil))
+    (when reset
+      (setq-local selectrum--history-hash nil))
+    (selectrum-exhibit (not reset))))
 
 (defun consult-selectrum--split-wrap (orig split)
   "Wrap candidates highlight/refinement ORIG function, splitting the input using SPLIT."
@@ -81,8 +84,36 @@ SPLIT is the splitter function."
     (setq-local selectrum-highlight-candidates-function
 		(consult-selectrum--split-wrap selectrum-highlight-candidates-function split))))
 
+(defun consult-selectrum--crm-select ()
+  "Select/deselect candidate."
+  (interactive)
+  (when (when-let (cand (selectrum-get-current-candidate))
+          (not (equal cand "")))
+    (selectrum-select-current-candidate)))
+
+(defun consult-selectrum--crm-exit ()
+  "Select/deselect candidate and exit."
+  (interactive)
+  (when (when-let (cand (selectrum-get-current-candidate))
+          (not (equal cand "")))
+    (run-at-time 0 nil #'exit-minibuffer))
+  (selectrum-select-current-candidate))
+
+(defvar consult-selectrum--crm-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap selectrum-insert-current-candidate] #'consult-selectrum--crm-select)
+    (define-key map [remap exit-minibuffer] #'consult-selectrum--crm-exit)
+    map))
+
+(defun consult-selectrum--crm-setup ()
+  "Setup crm for Selectrum."
+  (when selectrum-is-active
+    (setq-local selectrum-default-value-format nil)
+    (use-local-map (make-composed-keymap (list consult-selectrum--crm-map) (current-local-map)))))
+
 (add-hook 'consult--completion-candidate-hook #'consult-selectrum--candidate)
 (add-hook 'consult--completion-refresh-hook #'consult-selectrum--refresh)
+(add-hook 'consult--crm-setup-hook #'consult-selectrum--crm-setup)
 (advice-add #'consult--completion-filter :around #'consult-selectrum--filter-adv)
 (advice-add #'consult--split-setup :around #'consult-selectrum--split-setup-adv)
 
