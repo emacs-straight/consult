@@ -446,9 +446,6 @@ should not be considered as stable as the public API.")
 (defvar consult--cache nil
   "Cached data populated by `consult--define-cache'.")
 
-(defvar consult--crm-setup-hook nil
-  "Hook executed in `consult-completing-read-multiple' minibuffer.")
-
 (defvar consult--completion-candidate-hook
   (list #'consult--default-completion-mb-candidate
         #'consult--default-completion-list-candidate)
@@ -1590,7 +1587,12 @@ ARGS is a list of `make-process' properties and transforms."
 
 ;;;; Special keymaps
 
-(defvar consult-async-map (make-sparse-keymap)
+(defvar consult-async-map
+  (let ((map (make-sparse-keymap)))
+    ;; Async keys overwriting some unusable defaults for the default completion
+    (define-key map [remap minibuffer-complete-word] #'self-insert-command)
+    (define-key map [remap minibuffer-complete] #'minibuffer-completion-help)
+    map)
   "Keymap added for commands with asynchronous candidates.")
 
 (defvar consult-preview-map (make-sparse-keymap)
@@ -1599,7 +1601,7 @@ ARGS is a list of `make-process' properties and transforms."
 (defvar consult-narrow-map
   (let ((map (make-sparse-keymap)))
     (define-key map " " consult--narrow-space)
-    (define-key map [127] consult--narrow-delete)
+    (define-key map "\d" consult--narrow-delete)
     map)
   "Narrowing keymap which is added to the local minibuffer map.
 Note that `consult-narrow-key' and `consult-widen-key' are bound dynamically.")
@@ -1637,13 +1639,6 @@ NARROW are the narrow settings.
 PREVIEW-KEY are the preview keys."
   (let ((old-map (current-local-map))
         (map (make-sparse-keymap)))
-
-    ;; Async keys overwriting some unusable defaults for the default completion
-    (when async
-      (when (eq (lookup-key old-map " ") #'minibuffer-complete-word)
-        (define-key map " " #'self-insert-command))
-      (when (eq (lookup-key old-map "\t") #'minibuffer-complete)
-        (define-key map "\t" #'minibuffer-completion-help)))
 
     ;; Add narrow keys
     (when narrow
@@ -2054,10 +2049,9 @@ of functions and in `consult-completion-in-region'."
           ;; Use the `before-string' property since the overlay might be empty.
           (overlay-put ov 'before-string cand))))))
 
-;; Use minibuffer completion as the UI for completion-at-point
 ;;;###autoload
 (defun consult-completion-in-region (start end collection &optional predicate)
-  "Prompt for completion of region in the minibuffer if non-unique.
+  "Use minibuffer completion as the UI for `completion-at-point'.
 
 The function is called with 4 arguments: START END COLLECTION PREDICATE.
 The arguments and expected return value are as specified for
@@ -2195,18 +2189,6 @@ See `completing-read-multiple' for the documentation of the arguments."
          (items (append selected
                         (seq-remove (lambda (x) (member x selected))
                                     orig-items)))
-         (select-item
-          (lambda (item)
-            (unless (equal item "")
-              (setq selected (if (member item selected)
-                                 ;; Multi selections are not possible.
-                                 ;; This is probably no problem, since this is rarely desired.
-                                 (delete item selected)
-                               (nconc selected (list (funcall format-item item))))
-                    consult--crm-history (append (mapcar #'substring-no-properties selected) hist-val)
-                    items (append selected
-                                  (seq-remove (lambda (x) (member x selected))
-                                              orig-items))))))
          (orig-md (and (functionp table) (cdr (funcall table "" nil 'metadata))))
          (group-fun (alist-get 'group-function orig-md))
          (sort-fun
@@ -2225,8 +2207,8 @@ See `completing-read-multiple' for the documentation of the arguments."
              . ,(lambda (cand transform)
                   (if (get-text-property 0 'consult--crm-selected cand)
                       (if transform cand "Selected")
-                    (or (and group-fun (funcall group-fun cand transform)))
-                    (if transform cand "Select multiple"))))
+                    (or (and group-fun (funcall group-fun cand transform))
+                        (if transform cand "Select multiple")))))
             ,@(funcall sort-fun 'cycle-sort-function)
             ,@(funcall sort-fun 'display-sort-function)
             ,@(seq-filter (lambda (x) (memq (car x) '(annotation-function
@@ -2234,47 +2216,50 @@ See `completing-read-multiple' for the documentation of the arguments."
                                                       category)))
                           orig-md)))
          (overlay)
-         (update-overlay
-          (lambda ()
-            (when overlay
-              (overlay-put overlay 'display
-                           (when selected
-                             (format " (%s selected): " (length selected)))))))
          (command)
          (depth (1+ (recursion-depth)))
-         (hook (make-symbol "consult--crm-post-command-hook"))
+         (hook (make-symbol "consult--crm-pre-command-hook"))
          (wrapper (make-symbol "consult--crm-command-wrapper")))
     (fset wrapper
           (lambda ()
             (interactive)
             (pcase (catch 'exit
-                     (setq this-command command)
-                     (call-interactively command)
+                     (call-interactively (setq this-command command))
                      'continue)
               ('nil
                (with-selected-window (active-minibuffer-window)
                  (let ((item (minibuffer-contents-no-properties)))
                    (when (equal item "")
                      (throw 'exit nil))
+                   (setq selected (if (member item selected)
+                                      ;; Multi selections are not possible.
+                                      ;; This is probably no problem, since this is rarely desired.
+                                      (delete item selected)
+                                    (nconc selected (list (funcall format-item item))))
+                         consult--crm-history (append (mapcar #'substring-no-properties selected) hist-val)
+                         items (append selected
+                                       (seq-remove (lambda (x) (member x selected))
+                                                   orig-items)))
+                   (when overlay
+                     (overlay-put overlay 'display
+                                  (when selected
+                                    (format " (%s selected): " (length selected)))))
                    (delete-minibuffer-contents)
-                   (funcall select-item item)
-                   (funcall update-overlay)
                    (run-hook-with-args 'consult--completion-refresh-hook 'reset))))
               ('t (throw 'exit t)))))
     (fset hook (lambda ()
                  (when (and this-command (= depth (recursion-depth)))
-                   (setq command this-command
-                         this-command wrapper))))
-    (unwind-protect
-        (consult--minibuffer-with-setup-hook
-            (:append
-             (lambda ()
-               (when-let (pos (string-match-p "\\(?: (default[^)]+)\\)?: \\'" prompt))
-                 (setq overlay (make-overlay (+ (point-min) pos) (+ (point-min) (length prompt))))
-                 (funcall update-overlay))
-               (run-hooks 'consult--crm-setup-hook)))
-          (add-hook 'pre-command-hook hook 90)
-          (funcall select-item
+                   (setq command this-command this-command wrapper))))
+    (consult--minibuffer-with-setup-hook
+        (lambda ()
+          (when-let (pos (string-match-p "\\(?: (default[^)]+)\\)?: \\'" prompt))
+            (setq overlay (make-overlay (+ (point-min) pos) (+ (point-min) (length prompt))))
+            (when selected
+              (overlay-put overlay 'display (format " (%s selected): " (length selected))))))
+      (unwind-protect
+          (progn
+            (add-hook 'pre-command-hook hook 90)
+            (let ((result
                    (completing-read
                     prompt
                     (lambda (str pred action)
@@ -2287,7 +2272,10 @@ See `completing-read-multiple' for the documentation of the arguments."
                     'consult--crm-history
                     "" ;; default
                     inherit-input-method)))
-      (remove-hook 'pre-command-hook hook))
+              (unless (or (equal result "") selected)
+                (setq selected (list result)
+                      consult--crm-history (cons result hist-val)))))
+        (remove-hook 'pre-command-hook hook)))
     (set hist-sym consult--crm-history)
     (when (consp def)
       (setq def (car def)))
@@ -2937,11 +2925,6 @@ From these files, the commands are extracted."
                                       'consult--type key)
                           commands)))))))))))
 
-(defconst consult--mode-command-narrow
-  '((?m . "Major")
-    (?l . "Local Minor")
-    (?g . "Global Minor")))
-
 ;;;###autoload
 (defun consult-mode-command (&rest modes)
   "Run a command from any of the given MODES.
@@ -2953,22 +2936,25 @@ If no MODES are specified, use currently active major and minor modes."
                       (seq-filter (lambda (m)
                                     (and (boundp m) (symbol-value m)))
                                   minor-mode-list))))
-  (command-execute
-   (consult--read
-    (consult--mode-command-candidates modes)
-    :prompt "Mode command: "
-    :predicate
-    (lambda (cand)
-      (let ((key (get-text-property 0 'consult--type cand)))
-        (if consult--narrow
-            (= key consult--narrow)
-          (/= key ?g))))
-    :lookup #'consult--lookup-candidate
-    :group (consult--type-group consult--mode-command-narrow)
-    :narrow consult--mode-command-narrow
-    :require-match t
-    :history 'consult--mode-command-history
-    :category 'command)))
+  (let ((narrow `((?m . ,(format "Major: %s" major-mode))
+                  (?l . "Local Minor")
+                  (?g . "Global Minor"))))
+    (command-execute
+     (consult--read
+      (consult--mode-command-candidates modes)
+      :prompt "Mode command: "
+      :predicate
+      (lambda (cand)
+        (let ((key (get-text-property 0 'consult--type cand)))
+          (if consult--narrow
+              (= key consult--narrow)
+            (/= key ?g))))
+      :lookup #'consult--lookup-candidate
+      :group (consult--type-group narrow)
+      :narrow narrow
+      :require-match t
+      :history 'consult--mode-command-history
+      :category 'command))))
 
 ;;;;; Command: consult-yank
 
@@ -3452,15 +3438,17 @@ The command supports previewing the currently selected theme."
 
 ;;;;; Command: consult-buffer
 
-(consult--define-cache consult--cached-buffers
+(consult--define-cache consult--cached-all-buffers
   (let ((buffers (delq (current-buffer) (buffer-list)))
         (visible-p (lambda (x) (get-buffer-window x 'visible))))
     (nconc (seq-remove visible-p buffers)
            (seq-filter visible-p buffers)
            (list (current-buffer)))))
 
-(consult--define-cache consult--cached-buffer-names
-  (mapcar #'buffer-name (consult--cached-buffers)))
+(consult--define-cache consult--cached-buffers
+  (let ((filter (consult--regexp-filter consult-buffer-filter)))
+    (seq-remove (lambda (x) (string-match-p filter (buffer-name x)))
+                (consult--cached-all-buffers))))
 
 (consult--define-cache consult--cached-buffer-file-hash
   (consult--string-hash (delq nil (mapcar #'buffer-file-name (consult--cached-buffers)))))
@@ -3545,12 +3533,12 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     :category buffer
     :face     consult-buffer
     :history  buffer-name-history
-    :state    ,#'consult--buffer-state
+    :action   ,#'consult--buffer-action
     :items
     ,(lambda ()
        (let ((filter (consult--regexp-filter consult-buffer-filter)))
          (seq-filter (lambda (x) (string-match-p filter x))
-                     (consult--cached-buffer-names)))))
+                     (mapcar #'buffer-name (consult--cached-all-buffers))))))
   "Hidden buffer candidate source for `consult-buffer'.")
 
 (defvar consult--source-buffer
@@ -3563,9 +3551,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     :default  t
     :items
     ,(lambda ()
-       (let ((filter (consult--regexp-filter consult-buffer-filter)))
-         (seq-remove (lambda (x) (string-match-p filter x))
-                     (consult--cached-buffer-names)))))
+       (mapcar #'buffer-name (consult--cached-buffers))))
   "Buffer candidate source for `consult-buffer'.")
 
 (defvar consult--source-file

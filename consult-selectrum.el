@@ -34,7 +34,6 @@
 (defvar selectrum--history-hash)
 (declare-function selectrum-exhibit "ext:selectrum")
 (declare-function selectrum-get-current-candidate "ext:selectrum")
-(declare-function selectrum-select-current-candidate "ext:selectrum")
 
 (defun consult-selectrum--filter-adv (orig pattern cands category highlight)
   "Advice for ORIG `consult--completion-filter' function.
@@ -84,38 +83,20 @@ SPLIT is the splitter function."
     (setq-local selectrum-highlight-candidates-function
 		(consult-selectrum--split-wrap selectrum-highlight-candidates-function split))))
 
-(defun consult-selectrum--crm-select ()
-  "Select/deselect candidate."
-  (interactive)
-  (when (when-let (cand (selectrum-get-current-candidate))
-          (not (equal cand "")))
-    (selectrum-select-current-candidate)))
-
-(defun consult-selectrum--crm-exit ()
-  "Select/deselect candidate and exit."
-  (interactive)
-  (when (when-let (cand (selectrum-get-current-candidate))
-          (not (equal cand "")))
-    (run-at-time 0 nil #'exit-minibuffer))
-  (selectrum-select-current-candidate))
-
-(defvar consult-selectrum--crm-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [remap selectrum-insert-current-candidate] #'consult-selectrum--crm-select)
-    (define-key map [remap exit-minibuffer] #'consult-selectrum--crm-exit)
-    map))
-
-(defun consult-selectrum--crm-setup ()
-  "Setup crm for Selectrum."
-  (when selectrum-is-active
-    (setq-local selectrum-default-value-format nil)
-    (use-local-map (make-composed-keymap (list consult-selectrum--crm-map) (current-local-map)))))
+(defun consult-selectrum--crm-adv (&rest args)
+  "Setup crm for Selectrum given ARGS."
+  (consult--minibuffer-with-setup-hook
+      (lambda ()
+        (when selectrum-is-active
+          (setq-local selectrum-default-value-format nil)))
+    (apply args)))
 
 (add-hook 'consult--completion-candidate-hook #'consult-selectrum--candidate)
 (add-hook 'consult--completion-refresh-hook #'consult-selectrum--refresh)
-(add-hook 'consult--crm-setup-hook #'consult-selectrum--crm-setup)
+(advice-add #'consult-completing-read-multiple :around #'consult-selectrum--crm-adv)
 (advice-add #'consult--completion-filter :around #'consult-selectrum--filter-adv)
 (advice-add #'consult--split-setup :around #'consult-selectrum--split-setup-adv)
+(define-key consult-async-map [remap selectrum-insert-current-candidate] 'selectrum-next-page)
 
 (provide 'consult-selectrum)
 ;;; consult-selectrum.el ends here
