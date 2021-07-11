@@ -615,7 +615,7 @@ The line beginning/ending BEG/END is bound in BODY."
 (defmacro consult--static-if (cond then &rest else)
   "If COND yields non-nil at compile time, do THEN, else do ELSE."
   (declare (indent 2))
-  (if (eval cond) then (macroexp-progn else)))
+  (if (eval cond 'lexical) then (macroexp-progn else)))
 
 (defun consult--display-width (string)
   "Compute width of STRING taking display and invisible properties into account."
@@ -2108,9 +2108,20 @@ These configuration options are supported:
                        (consult--insertion-preview start end)
                        ;; transformation function
                        (if (eq category 'file)
-                           (if (file-name-absolute-p initial)
-                               (lambda (_inp cand) (substitute-in-file-name cand))
-                             (lambda (_inp cand) (file-relative-name (substitute-in-file-name cand))))
+                           (cond
+                            ;; Transform absolute file names
+                            ((file-name-absolute-p initial)
+                             (lambda (_inp cand)
+                               (substitute-in-file-name cand)))
+                            ;; Ensure that ./ prefix is kept for the shell (#356)
+                            ((string-match-p "\\`\\.\\.?/" initial)
+                             (lambda (_inp cand)
+                               (setq cand (file-relative-name (substitute-in-file-name cand)))
+                               (if (string-match-p "\\`\\.\\.?/" cand) cand (concat "./" cand))))
+                            ;; Simplify relative file names
+                            (t
+                             (lambda (_inp cand)
+                               (file-relative-name (substitute-in-file-name cand)))))
                          (lambda (_inp cand) cand))
                        ;; candidate function
                        (apply-partially #'run-hook-with-args-until-success
@@ -3496,10 +3507,12 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     ,(lambda ()
        (when-let (root (consult--project-root))
          (mapcar #'buffer-name
-                 (seq-filter (lambda (x)
-                               (when-let (file (buffer-file-name x))
-                                 (string-prefix-p root file)))
-                             (consult--cached-buffers))))))
+                 (seq-filter
+                  (lambda (x)
+                    (string-prefix-p
+                     root
+                     (expand-file-name (buffer-local-value 'default-directory x))))
+                  (consult--cached-buffers))))))
   "Project buffer candidate source for `consult-buffer'.")
 
 (defvar consult--source-project-file
