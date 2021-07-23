@@ -127,7 +127,7 @@ This applies to asynchronous commands, e.g., `consult-grep'."
     (semicolon :separator ?\; :type separator)
     (perl :initial "#" :type perl))
   "Async splitter styles."
-  :type 'alist)
+  :type '(alist :key-type symbol :value-type plist))
 
 (defcustom consult-mode-histories
   '((eshell-mode . eshell-history-ring)
@@ -280,7 +280,11 @@ command options."
 
 (defcustom consult-preview-key 'any
   "Preview trigger keys, can be nil, 'any, a single key or a list of keys."
-  :type '(choice (const any) (const nil) key-sequence (repeat key-sequence)))
+  :type '(choice (const :tag "Any key" any)
+                 (list :tag "Debounced" (const :debounce) (float :tag "Seconds" 0.1) (const any))
+                 (const :tag "No preview" nil)
+                 (key-sequence :tag "Key")
+                 (repeat :tag "List of keys" key-sequence)))
 
 (defcustom consult-preview-max-size 10485760
   "Files larger than this byte limit are not previewed."
@@ -320,7 +324,7 @@ Each element of the list must have the form '(char name handler)."
 (defcustom consult-crm-prefix
   (cons "  " (propertize "✓ " 'face 'success))
   "Prefix for `consult-completing-read-multiple' candidates."
-  :type '(cons string string))
+  :type '(cons (string :tag "Not selected") (string :tag "Selected")))
 
 ;;;; Faces
 
@@ -484,11 +488,14 @@ Size of private unicode plane b.")
 (defvar-local consult--narrow-overlay nil
   "Narrowing indicator overlay.")
 
-(defvar consult--gc-threshold 67108864
+(defvar consult--gc-threshold (* 64 1024 1024)
   "Large gc threshold for temporary increase.")
 
 (defvar consult--gc-percentage 0.5
   "Large gc percentage for temporary increase.")
+
+(defvar consult--process-chunk (* 1024 1024)
+  "Increase process output chunk size.")
 
 (defvar consult--async-log
   " *consult-async*"
@@ -1218,6 +1225,10 @@ to make it available for commands with narrowing."
   (when-let (widen (consult--widen-key))
     (define-key map widen (cons "All" #'consult-narrow))))
 
+;; Emacs 28: hide in M-X
+(put #'consult-narrow-help 'completion-predicate #'ignore)
+(put #'consult-narrow 'completion-predicate #'ignore)
+
 ;;;; Splitting completion style
 
 (defun consult--split-perl (str point)
@@ -1287,10 +1298,12 @@ POINT is the point position."
 BIND is the asynchronous function binding."
   (declare (indent 1))
   (let ((async (car bind)))
-    `(let ((,async ,@(cdr bind)))
+    `(let ((,async ,@(cdr bind)) (orig-chunk))
        (consult--minibuffer-with-setup-hook
            (lambda ()
              (when (functionp ,async)
+               (setq orig-chunk read-process-output-max
+                     read-process-output-max (max read-process-output-max consult--process-chunk))
                (funcall ,async 'setup)
                ;; Push input string to request refresh.
                ;; We use a symbol in order to avoid adding lambdas to the hook variable.
@@ -1301,7 +1314,9 @@ BIND is the asynchronous function binding."
          (let ((,async (if (functionp ,async) ,async (lambda (_) ,async))))
            (unwind-protect
                ,(macroexp-progn body)
-             (funcall ,async 'destroy)))))))
+             (funcall ,async 'destroy)
+             (when orig-chunk
+               (setq read-process-output-max orig-chunk))))))))
 
 (defun consult--async-sink ()
   "Create ASYNC sink function.
@@ -3292,15 +3307,19 @@ In order to select from a specific HISTORY, pass the history variable as argumen
   (setq isearch-new-forward (not reverse) isearch-new-nonincremental nil)
   (funcall (or (command-remapping #'exit-minibuffer) #'exit-minibuffer)))
 
-(defun consult-isearch-reverse (&optional reverse)
+(defun consult-isearch-backward (&optional reverse)
   "Continue isearch backward optionally in REVERSE."
   (interactive)
   (consult-isearch-forward (not reverse)))
 
+;; Emacs 28: hide in M-X
+(put #'consult-isearch-backward 'completion-predicate #'ignore)
+(put #'consult-isearch-forward 'completion-predicate #'ignore)
+
 (defvar consult-isearch-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "\C-s" #'consult-isearch-forward)
-    (define-key map "\C-r" #'consult-isearch-reverse)
+    (define-key map [remap isearch-forward] #'consult-isearch-forward)
+    (define-key map [remap isearch-backward] #'consult-isearch-backward)
     map)
   "Additional keymap used by `consult-isearch'.")
 
@@ -3793,7 +3812,8 @@ Macros containing mouse clicks are omitted."
 PROMPT is the prompt string.
 The symbol at point is added to the future history."
   (let* ((prompt-dir (consult--directory-prompt prompt dir))
-         (default-directory (cdr prompt-dir)))
+         (default-directory (cdr prompt-dir))
+         (read-process-output-max (max read-process-output-max (* 1024 1024))))
     (consult--read
      (consult--async-command cmd
        (consult--async-transform consult--grep-matches)
@@ -3907,7 +3927,7 @@ See `consult-grep' for more details regarding the asynchronous search."
                 (desc (match-string 4 str)))
             (push (cons
                    (format "%s - %s"
-                           (propertize names 'face 'consult-key)
+                           (propertize names 'face 'consult-file)
                            desc)
                    (concat section " " name))
                   candidates)))))
