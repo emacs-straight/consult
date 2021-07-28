@@ -684,7 +684,9 @@ The line beginning/ending BEG/END is bound in BODY."
 
 (defun consult--regexp-filter (regexps)
   "Create filter regexp from REGEXPS."
-  (mapconcat (lambda (x) (concat "\\(?:" x "\\)")) regexps "\\|"))
+  (if (stringp regexps)
+      regexps
+    (mapconcat (lambda (x) (concat "\\(?:" x "\\)")) regexps "\\|")))
 
 (defun consult--directory-prompt-1 (prompt dir)
   "Format PROMPT, expand directory DIR and return them as a pair."
@@ -718,8 +720,7 @@ Otherwise the `default-directory' is returned."
    ((stringp dir) (consult--directory-prompt-1 prompt dir))
    (dir (consult--directory-prompt-1 prompt (read-directory-name "Directory: " nil nil t)))
    ((when-let (root (consult--project-root))
-      (cons (format "%s in project %s: " prompt
-                    (file-name-base (directory-file-name root)))
+      (cons (format "%s in project %s: " prompt (consult--project-name root))
             root)))
    (t (consult--directory-prompt-1 prompt default-directory))))
 
@@ -727,6 +728,12 @@ Otherwise the `default-directory' is returned."
   "Return project root as absolute path."
   (when-let (root (and consult-project-root-function (funcall consult-project-root-function)))
     (expand-file-name root)))
+
+(defun consult--project-name (dir)
+  "Return the project name for DIR."
+  (if (string-match "/\\([^/]+\\)/\\'" dir)
+      (match-string 1 dir)
+    dir))
 
 (defun consult--format-location (file line &optional str)
   "Format location string 'FILE:LINE:STR'."
@@ -2672,8 +2679,7 @@ non-nil, all buffers are searched. Optional INITIAL input can be provided. See
     (consult--line
      (consult--line-multi-candidates :sort 'alpha :directory project)
      :prompt (if project
-                 (format "Go to line (Project %s): "
-                         (file-name-base (directory-file-name project)))
+                 (format "Go to line (Project %s): " (consult--project-name project))
                "Go to line (All buffers): ")
      :initial initial
      :group #'consult--line-group)))
@@ -3580,11 +3586,15 @@ The command supports previewing the currently selected theme."
 ;;;;; Command: consult-buffer
 
 (defun consult--buffer-sort-alpha (buffers)
-  "Sort BUFFERS alphabetically."
+  "Sort BUFFERS alphabetically, but push down starred buffers."
   (sort buffers
         (lambda (x y)
-          (string< (buffer-name x)
-                   (buffer-name y)))))
+          (setq x (buffer-name x) y (buffer-name y))
+          (let ((a (and (> (length x) 0) (eq (aref x 0) ?*)))
+                (b (and (> (length y) 0) (eq (aref y 0) ?*))))
+            (if (eq a b)
+                (string< x y)
+              (not a))))))
 
 (defun consult--buffer-sort-visibility (buffers)
   "Sort BUFFERS by visibility."
@@ -3598,15 +3608,17 @@ The command supports previewing the currently selected theme."
           nil)))
     (nconc (nreverse hidden) buffers (list (current-buffer)))))
 
-(cl-defun consult--buffer-query (&key sort (filter t) directory mode as)
+(cl-defun consult--buffer-query (&key sort directory mode as (filter t)
+                                      include (exclude consult-buffer-filter) )
   "Buffer query function.
 DIRECTORY can either be project or a path.
 SORT can be visibility, alpha or nil.
-FILTER can be t, hidden or nil.
+FILTER can be either t, nil or invert.
+EXCLUDE is a list of regexps.
+INCLUDE is a list of regexps.
 MODE can be a mode or a list of modes to restrict the returned buffers.
 AS is a conversion function."
-  ;; This function is quite messy but optimized to avoid unnecessary
-  ;; allocations. It is the backbone of most `consult-buffer' source. The
+  ;; This function is the backbone of most `consult-buffer' source. The
   ;; function supports filtering by various criteria which are used throughout
   ;; Consult.
   (when-let (root (pcase-exhaustive directory
@@ -3618,7 +3630,8 @@ AS is a conversion function."
         (setq buffers (funcall (intern (format "consult--buffer-sort-%s" sort)) buffers)))
       (when (or filter mode as (stringp root))
         (let ((mode (if (listp mode) mode (list mode)))
-              (re (consult--regexp-filter consult-buffer-filter)))
+              (exclude-re (consult--regexp-filter exclude))
+              (include-re (consult--regexp-filter include)))
           (consult--keep! buffers
             (and
              (or (not mode)
@@ -3626,8 +3639,13 @@ AS is a conversion function."
                         (buffer-local-value 'major-mode it) mode))
              (pcase-exhaustive filter
                ('nil t)
-               ('hidden (string-match-p re (buffer-name it)))
-               ('t (not (string-match-p re (buffer-name it)))))
+               ((or 't 'invert)
+                (eq (eq filter t)
+                    (and
+                     (or (not exclude)
+                         (not (string-match-p exclude-re (buffer-name it))))
+                     (or (not include)
+                         (not (not (string-match-p include-re (buffer-name it)))))))))
              (or (not (stringp root))
                  (when-let (dir (buffer-local-value 'default-directory it))
                    (string-prefix-p root
@@ -3736,7 +3754,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     :action   ,#'consult--buffer-action
     :items
     ,(lambda () (consult--buffer-query :sort 'visibility
-                                       :filter 'hidden
+                                       :filter 'invert
                                        :as #'buffer-name)))
   "Hidden buffer candidate source for `consult-buffer'.")
 
