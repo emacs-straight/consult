@@ -1343,17 +1343,16 @@ An async function must accept a single action argument. For the 'setup action
 it is guaranteed that the call originates from the minibuffer. For the other
 actions no assumption about the context can be made.
 
-'setup   Setup the internal closure state.
-'destroy Destroy the internal closure state.
-'flush   Flush the list of candidates.
-'refresh Request UI refresh.
-nil      Return the current list of candidates.
-list     Append the list to the already existing list of candidates.
-string   The input string. Called when the user enters something."
+'setup   Setup the internal closure state. Return nil.
+'destroy Destroy the internal closure state. Return nil.
+'flush   Flush the list of candidates. Return nil.
+'refresh Request UI refresh. Return nil.
+nil      Return the list of candidates.
+list     Append the list to the already existing candidates list and return it.
+string   Update with the current user input string. Return nil."
   (let ((candidates) (last) (buffer))
     (lambda (action)
       (pcase-exhaustive action
-        ('nil candidates)
         ('setup
          (setq buffer (current-buffer))
          nil)
@@ -1365,7 +1364,9 @@ string   The input string. Called when the user enters something."
          (when-let (win (active-minibuffer-window))
            (when (eq (window-buffer win) buffer)
              (with-selected-window win
-               (run-hooks 'consult--completion-refresh-hook)))))
+               (run-hooks 'consult--completion-refresh-hook))))
+         nil)
+        ('nil candidates)
         ((pred consp)
          (setq last (last (if last (setcdr last action) (setq candidates action))))
          candidates)))))
@@ -1421,6 +1422,16 @@ SPLIT is the splitting function."
     (goto-char (point-max))
     (insert (apply #'format formatted args))))
 
+(defun consult--process-indicator (event)
+  "Return the process indicator character for EVENT."
+  (cond
+   ((string-prefix-p "killed" event)
+    #(";" 0 1 (face consult-async-failed)))
+   ((string-prefix-p "finished" event)
+    #(":" 0 1 (face consult-async-finished)))
+   (t
+    #("!" 0 1 (face consult-async-failed)))))
+
 (defun consult--async-process (async cmd &rest props)
   "Create process source async function.
 
@@ -1436,10 +1447,43 @@ PROPS are optional properties passed to `make-process'."
            (setq proc nil))
          (setq last-args nil))
         ((pred stringp)
-         (let ((args (funcall cmd action))
-               (stderr-buffer (generate-new-buffer " *consult-async-stderr*"))
-               (flush t)
-               (rest ""))
+         (let* ((args (funcall cmd action))
+                (stderr-buffer (generate-new-buffer " *consult-async-stderr*"))
+                (flush t)
+                (rest "")
+                (proc-filter
+                 (lambda (_ out)
+                   (when flush
+                     (setq flush nil)
+                     (funcall async 'flush))
+                   (let ((lines (split-string out "\n")))
+                     (if (not (cdr lines))
+                         (setq rest (concat rest (car lines)))
+                       (setcar lines (concat rest (car lines)))
+                       (let* ((len (length lines))
+                              (last (nthcdr (- len 2) lines)))
+                         (setq rest (cadr last)
+                               count (+ count len -1))
+                         (setcdr last nil)
+                         (funcall async lines))))))
+                (proc-sentinel
+                 (lambda (_ event)
+                   (when flush
+                     (setq flush nil)
+                     (funcall async 'flush))
+                   (overlay-put indicator 'display (consult--process-indicator event))
+                   (when (and (string-prefix-p "finished" event) (not (string= rest "")))
+                     (setq count (+ count 1))
+                     (funcall async (list rest)))
+                   (consult--async-log
+                    "consult--async-process sentinel: event=%s lines=%d\n"
+                    (string-trim event) count)
+                   (with-current-buffer (get-buffer-create consult--async-log)
+                     (goto-char (point-max))
+                     (insert ">>>>> stderr >>>>>\n")
+                     (insert-buffer-substring stderr-buffer)
+                     (insert "<<<<< stderr <<<<<\n")
+                     (kill-buffer stderr-buffer)))))
            (unless (equal args last-args)
              (setq last-args args)
              (when proc
@@ -1448,59 +1492,18 @@ PROPS are optional properties passed to `make-process'."
              (when args
                (overlay-put indicator 'display #("*" 0 1 (face consult-async-running)))
                (consult--async-log "consult--async-process started %S\n" args)
-               (setq
-                count 0
-                proc
-                (apply
-                 #'make-process
-                 (append
-                  props
-                  (list
-                   :connection-type 'pipe
-                   :name (car args)
-                   :stderr stderr-buffer ;;; XXX tramp bug, the stderr buffer must be empty
-                   :noquery t
-                   :command args
-                   :filter
-                   (lambda (_ out)
-                     (when flush
-                       (setq flush nil)
-                       (funcall async 'flush))
-                     (let ((lines (split-string out "\n")))
-                       (if (not (cdr lines))
-                           (setq rest (concat rest (car lines)))
-                         (setcar lines (concat rest (car lines)))
-                         (let* ((len (length lines))
-                                (last (nthcdr (- len 2) lines)))
-                           (setq rest (cadr last)
-                                 count (+ count len -1))
-                           (setcdr last nil)
-                           (funcall async lines)))))
-                   :sentinel
-                   (lambda (_ event)
-                     (when flush
-                       (setq flush nil)
-                       (funcall async 'flush))
-                     (overlay-put indicator 'display
-                                  (cond
-                                   ((string-prefix-p "killed" event)
-                                    #(";" 0 1 (face consult-async-failed)))
-                                   ((string-prefix-p "finished" event)
-                                    #(":" 0 1 (face consult-async-finished)))
-                                   (t
-                                    #("!" 0 1 (face consult-async-failed)))))
-                     (when (and (string-prefix-p "finished" event) (not (string= rest "")))
-                       (setq count (+ count 1))
-                       (funcall async (list rest)))
-                     (consult--async-log
-                      "consult--async-process sentinel: event=%s lines=%d\n"
-                      (string-trim event) count)
-                     (with-current-buffer (get-buffer-create consult--async-log)
-                       (goto-char (point-max))
-                       (insert ">>>>> stderr >>>>>\n")
-                       (insert-buffer-substring stderr-buffer)
-                       (insert "<<<<< stderr <<<<<\n")
-                       (kill-buffer stderr-buffer)))))))))))
+               (setq count 0
+                     proc (apply #'make-process
+                                 `(,@props
+                                   :connection-type pipe
+                                   :name ,(car args)
+                                   ;;; XXX tramp bug, the stderr buffer must be empty
+                                   :stderr ,stderr-buffer
+                                   :noquery t
+                                   :command ,args
+                                   :filter ,proc-filter
+                                   :sentinel ,proc-sentinel))))))
+         nil)
         ('destroy
          (when proc
            (delete-process proc)
@@ -1535,13 +1538,13 @@ The DEBOUNCE delay defaults to `consult-async-input-debounce'."
                    (run-at-time
                     (+ debounce
                        (if last
-                           (min (- (float-time) last)
-                                consult-async-input-throttle)
+                           (min (- (float-time) last) throttle)
                          0))
                     nil
                     (lambda ()
                       (setq last (float-time))
-                      (funcall async action)))))))
+                      (funcall async action))))))
+         nil)
         ('destroy
          (when timer (cancel-timer timer))
          (funcall async 'destroy))
@@ -2658,7 +2661,7 @@ changed if the START prefix argument is set. The symbol at point and the last
      :prompt (if top "Go to line from top: " "Go to line: ")
      :initial initial)))
 
-(defun consult--line-multi-candidates (&rest query)
+(defun consult--line-multi-candidates (query)
   "Collect the line candidates from multiple buffers.
 QUERY is passed to `consult--buffer-query'."
   (or (apply #'nconc
@@ -2668,19 +2671,24 @@ QUERY is passed to `consult--buffer-query'."
       (user-error "No lines")))
 
 ;;;###autoload
-(defun consult-line-multi (all &optional initial)
+(defun consult-line-multi (query &optional initial)
   "Search for a matching line in multiple buffers.
 
-By default search across all project buffers. If the prefix argument ALL is
+By default search across all project buffers. If the prefix argument QUERY is
 non-nil, all buffers are searched. Optional INITIAL input can be provided. See
-`consult-line' for more information."
+`consult-line' for more information. In order to search a subset of filters,
+QUERY can be set to a plist according to `consult--buffer-query'."
   (interactive "P")
-  (let ((project (and (not all) (consult--project-root))))
+  (let ((scope "Multiple buffers"))
+    (unless (keywordp (car-safe query))
+      (let ((project (and (not query) (consult--project-root))))
+        (setq query `(:sort alpha :directory ,project)
+              scope (if project
+                        (format "Project %s" (consult--project-name project))
+                      "All buffers"))))
     (consult--line
-     (consult--line-multi-candidates :sort 'alpha :directory project)
-     :prompt (if project
-                 (format "Go to line (Project %s): " (consult--project-name project))
-               "Go to line (All buffers): ")
+     (consult--line-multi-candidates query)
+     :prompt (format "Go to line (%s): " scope)
      :initial initial
      :group #'consult--line-group)))
 
