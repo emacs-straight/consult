@@ -434,13 +434,6 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
 
 ;;;; Internal variables
 
-(defvar consult-async-default-split "#")
-(make-obsolete-variable 'consult-async-default-split
-                        "Deprecated in favor of `consult-async-split-style'." "0.7")
-
-(defvaralias 'consult-config 'consult--read-config)
-(make-obsolete-variable 'consult-config "Deprecated in favor of `consult-customize'." "0.7")
-
 (defvar consult--read-config nil
   "Command configuration alist for fine-grained configuration.
 
@@ -3148,14 +3141,8 @@ version supports preview of the selected string."
       (goto-char (prog1 (mark t)
                    (set-marker (mark-marker) (point) (current-buffer)))))))
 
-(define-obsolete-function-alias
-  'consult-yank
-  'consult-yank-from-kill-ring
-  "0.7")
-
 (put 'consult-yank-replace 'delete-selection 'yank)
 (put 'consult-yank-pop 'delete-selection 'yank)
-(put 'consult-yank 'delete-selection 'yank)
 (put 'consult-yank-from-kill-ring 'delete-selection 'yank)
 
 ;;;###autoload
@@ -3616,7 +3603,7 @@ The command supports previewing the currently selected theme."
           nil)))
     (nconc (nreverse hidden) buffers (list (current-buffer)))))
 
-(cl-defun consult--buffer-query (&key sort directory mode as (filter t)
+(cl-defun consult--buffer-query (&key sort directory mode as predicate (filter t)
                                       include (exclude consult-buffer-filter) )
   "Buffer query function.
 DIRECTORY can either be project or a path.
@@ -3625,6 +3612,7 @@ FILTER can be either t, nil or invert.
 EXCLUDE is a list of regexps.
 INCLUDE is a list of regexps.
 MODE can be a mode or a list of modes to restrict the returned buffers.
+PREDICATE is a predicate function.
 AS is a conversion function."
   ;; This function is the backbone of most `consult-buffer' source. The
   ;; function supports filtering by various criteria which are used throughout
@@ -3660,6 +3648,7 @@ AS is a conversion function."
                                     (if (and (/= 0 (length dir)) (eq (aref dir 0) ?/))
                                         dir
                                       (expand-file-name dir)))))
+             (or (not predicate) (funcall predicate it))
              (if as (funcall as it) it)))))
       buffers)))
 
