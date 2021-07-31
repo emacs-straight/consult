@@ -1894,8 +1894,7 @@ INHERIT-INPUT-METHOD, if non-nil the minibuffer inherits the input method."
   "Return title of candidate CAND or TRANSFORM the candidate given SOURCES."
   (if transform
       cand
-    (let ((src (consult--multi-source sources cand)))
-      (or (plist-get src :name) (capitalize (symbol-name (plist-get src :category)))))))
+    (plist-get (consult--multi-source sources cand) :name)))
 
 (defun consult--multi-preview-key (sources)
   "Return preview keys from SOURCES."
@@ -2081,7 +2080,15 @@ KEYMAP is a command-specific keymap."
 The candidates are previewed in the region from START to END. This function is
 used as the `:state' argument for `consult--read' in the `consult-yank' family
 of functions and in `consult-completion-in-region'."
-  (unless (minibufferp)
+  (unless (or (minibufferp)
+              ;; XXX Disable preview if anything odd is going on with the markers. Otherwise we get
+              ;; "Marker points into wrong buffer errors". See
+              ;; https://github.com/minad/consult/issues/375, where Org mode source blocks are
+              ;; completed in a different buffer than the original buffer. This completion is
+              ;; probably also problematic in my Corfu completion package.
+              (not (eq (window-buffer) (current-buffer)))
+	      (and (markerp start) (not (eq (marker-buffer start) (current-buffer))))
+	      (and (markerp end) (not (eq (marker-buffer end) (current-buffer)))))
     (let (ov)
       (lambda (cand restore)
         (if restore
