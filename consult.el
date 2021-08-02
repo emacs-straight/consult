@@ -243,7 +243,7 @@ command options."
 
 (defcustom consult-ripgrep-command
   "rg --null --line-buffered --color=ansi --max-columns=1000\
-   --no-heading --line-number . -e ARG OPTS"
+   --smart-case --no-heading --line-number . -e ARG OPTS"
   "Command line string for ripgrep, see `consult-ripgrep'.
 
 The command string must have a specific format, including ARG and OPTS
@@ -711,7 +711,13 @@ Then the `consult-project-root-function' is tried.
 Otherwise the `default-directory' is returned."
   (cond
    ((stringp dir) (consult--directory-prompt-1 prompt dir))
-   (dir (consult--directory-prompt-1 prompt (read-directory-name "Directory: " nil nil t)))
+   (dir (consult--directory-prompt-1
+         prompt
+         ;; HACK Preserve this-command across `read-directory-name' call,
+         ;; such that `consult-customize' continues to work.
+         ;; TODO Find a better and more general solution which preserves `this-command'.
+         (let ((this-command this-command))
+           (read-directory-name "Directory: " nil nil t))))
    ((when-let (root (consult--project-root))
       (cons (format "%s in project %s: " prompt (consult--project-name root))
             root)))
