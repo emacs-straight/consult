@@ -84,7 +84,7 @@ This is the key representation accepted by `define-key'."
 The root directory is used by `consult-buffer' and `consult-grep'."
   :type '(choice function (const nil)))
 
-(defcustom consult-async-refresh-delay 0.4
+(defcustom consult-async-refresh-delay 0.2
   "Refreshing delay of the completion ui for asynchronous commands.
 
 The completion ui is only updated every `consult-async-refresh-delay'
@@ -92,7 +92,7 @@ seconds. This applies to asynchronous commands like for example
 `consult-grep'."
   :type 'float)
 
-(defcustom consult-async-input-throttle 0.5
+(defcustom consult-async-input-throttle 0.4
   "Input throttle for asynchronous commands.
 
 The asynchronous process is started only every
@@ -217,15 +217,9 @@ See `consult--multi' for a description of the source values."
   "Filter commands for `consult-mode-command'."
   :type '(repeat (choice symbol regexp)))
 
-(defcustom consult-git-grep-command
-  "git --no-pager grep --null --color=always --extended-regexp\
-   --line-number -I -e ARG OPTS"
-  "Command line string for git-grep, see `consult-git-grep'.
-
-The command string must have a specific format, including ARG and OPTS
-substrings. ARG is replaced by the filter string and OPTS by the auxillary
-command options."
-  :type 'string)
+(defcustom consult-grep-max-columns 300
+  "Maximal number of columns of grep output."
+  :type 'integer)
 
 (defcustom consult-grep-command
   "grep --null --line-buffered --color=always --extended-regexp\
@@ -237,45 +231,36 @@ substrings. ARG is replaced by the filter string and OPTS by the auxillary
 command options."
   :type 'string)
 
-(defcustom consult-grep-max-columns 300
-  "Maximal number of columns of grep output."
-  :type 'integer)
+(defcustom consult-git-grep-command
+  "git --no-pager grep --null --color=always --extended-regexp\
+   --line-number -I -e ARG OPTS"
+  "Command line string for git-grep, see `consult-git-grep'.
+See `consult-grep-command' for more information."
+  :type 'string)
 
 (defcustom consult-ripgrep-command
   "rg --null --line-buffered --color=ansi --max-columns=1000\
    --smart-case --no-heading --line-number . -e ARG OPTS"
   "Command line string for ripgrep, see `consult-ripgrep'.
-
-The command string must have a specific format, including ARG and OPTS
-substrings. ARG is replaced by the filter string and OPTS by the auxillary
-command options."
+See `consult-grep-command' for more information."
   :type 'string)
 
 (defcustom consult-find-command
   "find . -not ( -wholename */.* -prune ) -ipath *ARG* OPTS"
   "Command line string for find, see `consult-find'.
-
-The command string must have a specific format, including ARG and OPTS
-substrings. ARG is replaced by the filter string and OPTS by the auxillary
-command options. By default the ARG is wrapped in wildcards."
+See `consult-grep-command' for more information."
   :type 'string)
 
 (defcustom consult-locate-command
   "locate --ignore-case --existing --regexp ARG OPTS"
   "Command line string for locate, see `consult-locate'.
-
-The command string must have a specific format, including ARG and OPTS
-substrings. ARG is replaced by the filter string and OPTS by the auxillary
-command options."
+See `consult-grep-command' for more information."
   :type 'string)
 
 (defcustom consult-man-command
   "man -k ARG OPTS"
   "Command line string for man, see `consult-man'.
-
-The command string must have a specific format, including ARG and OPTS
-substrings. ARG is replaced by the filter string and OPTS by the auxillary
-command options."
+See `consult-grep-command' for more information."
   :type 'string)
 
 (defcustom consult-preview-key 'any
@@ -1445,6 +1430,7 @@ PROPS are optional properties passed to `make-process'."
            (setq proc nil))
          (setq last-args nil))
         ((pred stringp)
+         (funcall async action)
          (let* ((args (funcall cmd action))
                 (stderr-buffer (generate-new-buffer " *consult-async-stderr*"))
                 (flush t)
@@ -1554,7 +1540,7 @@ The DEBOUNCE delay defaults to `consult-async-input-debounce'."
 The refresh happens immediately when candidates are pushed."
   (lambda (action)
     (pcase action
-      ((or (pred consp) (pred stringp) 'flush)
+      ((or (pred consp) 'flush)
        (prog1 (funcall async action)
          (funcall async 'refresh)))
       (_ (funcall async action)))))
@@ -1567,7 +1553,7 @@ The refresh happens after a DELAY, defaulting to `consult-async-refresh-delay'."
     (lambda (action)
       (prog1 (funcall async action)
         (pcase action
-          ((or (pred consp) (pred stringp) 'flush)
+          ((or (pred consp) 'flush)
            (setq refresh t)
            (unless timer
              (setq timer (run-at-time
