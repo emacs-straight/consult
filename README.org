@@ -244,20 +244,25 @@ their descriptions.
  #+findex: consult-git-grep
  #+findex: consult-find
  #+findex: consult-locate
- - =consult-grep=, =consult-ripgrep=, =consult-git-grep=: Search for
-   regular expression in files. Consult invokes Grep asynchronously, while you
-   enter the search term. After at least =consult-async-min-input= characters, the
-   search gets started. Consult splits the input string into two parts, if the
-   first character is a punctuation character, like =#=. For example
-   =#grep-regexp#filter-string=, is split at the second =#=. The string =grep-regexp=
-   is passed to Grep. By default, spaces are replaced by ~.*~. The =filter-string=
-   is passed to the /fast/ Emacs filtering to further narrow down the list of
-   matches. This is particularly useful if you are using an advanced completion
-   style like orderless. =consult-grep= supports preview. If the
-   =consult-project-root-function= is [[#use-package-example][configured]] and returns non-nil, =consult-grep=
-   searches the current project directory. Otherwise the =default-directory= is
-   searched. If =consult-grep= is invoked with prefix argument =C-u M-s g=, you can
-   specify the directory manually.
+ - =consult-grep=, =consult-ripgrep=, =consult-git-grep=: Search for regular expression
+   in files. Consult invokes Grep asynchronously, while you enter the search
+   term. After at least =consult-async-min-input= characters, the search gets
+   started. Consult splits the input string into two parts, if the first
+   character is a punctuation character, like =#=. For example
+   =#grep-regexps#filter-string=, is split at the second =#=. The string
+   =grep-regexps= is passed to Grep. If you enter multiple regular expressions
+   separated by space only lines matching all regular expressions are shown. If
+   the grep program has support for Perl-compatible regular expressions (PCRE),
+   then the regular expressions can appear in any order. If not, the regular
+   expressions must appear in the input order. In this case, spaces are
+   essentially replaced by ~.*~. The =filter-string= is passed to the /fast/ Emacs
+   filtering to further narrow down the list of matches. This is particularly
+   useful if you are using an advanced completion style like orderless.
+   =consult-grep= supports preview. If the =consult-project-root-function= is
+   [[#use-package-example][configured]] and returns non-nil, =consult-grep= searches the current project
+   directory. Otherwise the =default-directory= is searched. If =consult-grep= is
+   invoked with prefix argument =C-u M-s g=, you can specify the directory
+   manually.
  - =consult-find=, =consult-locate=: Find file by
    matching the path against a regexp. Like for =consult-grep,= either the project
    root or the current directory is the root directory for the search. The input
@@ -531,9 +536,7 @@ their descriptions.
  Examples:
 
  - =#defun=: Search for "defun" using grep.
- - =#consult embark=: Search for "consult.*embark" using grep.
-   If the grep program has support for Perl-compatible regular expressions
-   (PCRE), the search includes both "consult.*embark" and "embark.*consult".
+ - =#consult embark=: Search for "consult" and "embark" using grep.
  - =#defun#consult=: Search for "defun" using grep, filter with the word
    "consult".
  - =/defun/consult=: It is also possible to use other punctuation
@@ -914,19 +917,19 @@ configuration examples.
  | consult-buffer-filter            | Filter for =consult-buffer=                             |
  | consult-buffer-sources           | List of virtual buffer sources                        |
  | consult-crm-prefix               | Prefix string for CRM candidates                      |
- | consult-find-command             | Command line arguments for find                       |
+ | consult-find-config              | Command line arguments for find                       |
  | consult-fontify-max-size         | Buffers larger than this limit are not fontified      |
  | consult-fontify-preserve         | Preserve fontification for line-based commands.       |
- | consult-git-grep-command         | Command line arguments for git-grep                   |
+ | consult-git-grep-config          | Command line arguments for git-grep                   |
  | consult-goto-line-numbers        | Show line numbers for =consult-goto-line=               |
  | consult-grep-max-columns         | Maximal number of columns of the matching lines       |
- | consult-grep-command             | Command line arguments for grep                       |
+ | consult-grep-config              | Command line arguments for grep                       |
  | consult-imenu-config             | Mode-specific configuration for =consult-imenu=         |
  | consult-line-numbers-widen       | Show absolute line numbers when narrowing is active.  |
  | consult-line-point-placement     | Placement of the point used by =consult-line=           |
  | consult-line-start-from-top      | Start the =consult-line= search from the top            |
- | consult-locate-command           | Command line arguments for locate                     |
- | consult-man-command              | Command line arguments for man                        |
+ | consult-locate-config            | Command line arguments for locate                     |
+ | consult-man-config               | Command line arguments for man                        |
  | consult-mode-command-filter      | Filter for =consult-mode-command=                       |
  | consult-mode-histories           | Mode-specific history variables                       |
  | consult-narrow-key               | Narrowing prefix key during completion                |
@@ -937,7 +940,7 @@ configuration examples.
  | consult-preview-raw-size         | Files larger than this size are previewed in raw form |
  | consult-project-root-function    | Function which returns current project root           |
  | consult-register-narrow          | Narrowing configuration for =consult-register=          |
- | consult-ripgrep-command          | Command line arguments for ripgrep                    |
+ | consult-ripgrep-config           | Command line arguments for ripgrep                    |
  | consult-themes                   | List of themes to be presented for selection          |
  | consult-widen-key                | Widening key during completion                        |
 
