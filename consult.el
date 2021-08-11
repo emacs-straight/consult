@@ -608,24 +608,38 @@ The function should return a pair, the list of regular expressions and a
 highlight function. The highlight function should take a single argument, the
 string to highlight given the INPUT. TYPE is the desired type of regular
 expression, which can be `basic', `extended', `emacs' or `pcre'."
-  (setq input (split-string input nil 'omit-nulls))
+  (setq input (consult--split-escaped input))
   (cons (mapcar (lambda (x) (consult--convert-regexp x type)) input)
         (when-let (regexps (seq-filter #'consult--valid-regexp-p input))
           (lambda (str)
             (consult--highlight-regexps regexps str)))))
 
+(defun consult--split-escaped (str)
+  "Split STR at spaces, which can be escaped with backslash."
+  (mapcar
+   (lambda (x) (replace-regexp-in-string (string 0) " " x))
+   (split-string (replace-regexp-in-string
+                  "\\\\\\\\\\|\\\\ "
+                  (lambda (x) (if (equal x "\\ ") (string 0) x))
+                  str)
+                 " +" t)))
+
 (defun consult--join-regexps (regexps type)
   "Join REGEXPS of TYPE."
   ;; Add lookahead wrapper only if there is more than one regular expression
-  (if (and (eq type 'pcre) (cdr regexps))
+  (cond
+   ((and (eq type 'pcre) (cdr regexps))
     (concat "^" (mapconcat (lambda (x) (format "(?=.*%s)" x))
-                           regexps ""))
+                           regexps "")))
+   ((eq type 'basic)
+    (string-join regexps ".*"))
+   (t
     (when (> (length regexps) 3)
       (message "Too many regexps, %S ignored. Use post-filtering!"
                (string-join (seq-drop regexps 3) " "))
       (setq regexps (seq-take regexps 3)))
     (consult--regexp-join-permutations regexps
-                                       (and (memq type '(basic emacs)) "\\"))))
+                                       (and (memq type '(basic emacs)) "\\")))))
 
 (defun consult--regexp-join-permutations (regexps esc)
   "Join all permutations of REGEXPS.
