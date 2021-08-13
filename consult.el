@@ -621,7 +621,7 @@ expression, which can be `basic', `extended', `emacs' or `pcre'."
    (split-string (replace-regexp-in-string
                   "\\\\\\\\\\|\\\\ "
                   (lambda (x) (if (equal x "\\ ") (string 0) x))
-                  str)
+                  str 'fixedcase 'literal)
                  " +" t)))
 
 (defun consult--join-regexps (regexps type)
@@ -1050,12 +1050,14 @@ MARKER is the cursor position."
 
 (defun consult--temporary-files ()
   "Return a function to open files temporarily."
-  (let* ((new-buffers))
+  (let* ((new-buffers)
+         (dir default-directory))
     (lambda (&optional name)
       (if name
-          (or (get-file-buffer name)
-              (when-let (attrs (file-attributes name))
-                (let ((size (file-attribute-size attrs)))
+          (let ((default-directory dir))
+            (or (get-file-buffer name)
+                (when-let* ((attrs (file-attributes name))
+                            (size (file-attribute-size attrs)))
                   (if (> size consult-preview-max-size)
                       (prog1 nil
                         (message "File `%s' (%s) is too large for preview"
@@ -1597,7 +1599,7 @@ PROPS are optional properties passed to `make-process'."
                    (when flush
                      (setq flush nil)
                      (funcall async 'flush))
-                   (let ((lines (split-string out "\n")))
+                   (let ((lines (split-string out "[\r\n]+")))
                      (if (not (cdr lines))
                          (setq rest (concat rest (car lines)))
                        (setcar lines (concat rest (car lines)))
