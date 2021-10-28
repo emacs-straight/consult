@@ -3517,7 +3517,7 @@ In order to select from a specific HISTORY, pass the history variable as argumen
       (delete-minibuffer-contents))
     (insert (substring-no-properties str))))
 
-;;;;; Command: consult-isearch
+;;;;; Command: consult-isearch-history
 
 (defun consult-isearch-forward (&optional reverse)
   "Continue isearch forward optionally in REVERSE."
@@ -3535,14 +3535,14 @@ In order to select from a specific HISTORY, pass the history variable as argumen
 (put #'consult-isearch-backward 'completion-predicate #'ignore)
 (put #'consult-isearch-forward 'completion-predicate #'ignore)
 
-(defvar consult-isearch-map
+(defvar consult-isearch-history-map
   (let ((map (make-sparse-keymap)))
     (define-key map [remap isearch-forward] #'consult-isearch-forward)
     (define-key map [remap isearch-backward] #'consult-isearch-backward)
     map)
-  "Additional keymap used by `consult-isearch'.")
+  "Additional keymap used by `consult-isearch-history'.")
 
-(defun consult--isearch-candidates ()
+(defun consult--isearch-history-candidates ()
   "Return isearch history candidates."
   ;; NOTE: Do not throw an error on empty history,
   ;; in order to allow starting a search.
@@ -3572,7 +3572,7 @@ In order to select from a specific HISTORY, pass the history variable as argumen
          (+ 4 (apply #'max (mapcar #'length history)))
        0))))
 
-(defconst consult--isearch-narrow
+(defconst consult--isearch-history-narrow
   '((?c . "Char")
     (?u . "Custom")
     (?l . "Literal")
@@ -3581,8 +3581,8 @@ In order to select from a specific HISTORY, pass the history variable as argumen
     (?w . "Word")))
 
 ;;;###autoload
-(defun consult-isearch ()
-  "Read a search string with completion from history.
+(defun consult-isearch-history ()
+  "Read a search string with completion from the Isearch history.
 
 This replaces the current search string if Isearch is active, and
 starts a new Isearch session otherwise."
@@ -3590,7 +3590,7 @@ starts a new Isearch session otherwise."
   (consult--forbid-minibuffer)
   (let* ((isearch-message-function 'ignore) ;; Avoid flicker in echo area
          (inhibit-redisplay t)              ;; Avoid flicker in mode line
-         (candidates (consult--isearch-candidates))
+         (candidates (consult--isearch-history-candidates))
          (align (propertize " " 'display `(space :align-to (+ left ,(cdr candidates))))))
     (unless isearch-mode (isearch-mode t))
     (with-isearch-suspended
@@ -3602,15 +3602,15 @@ starts a new Isearch session otherwise."
             :history t ;; disable history
             :sort nil
             :initial isearch-string
-            :keymap consult-isearch-map
+            :keymap consult-isearch-history-map
             :annotate
             (lambda (cand)
-              (concat align (alist-get (consult--tofu-get cand) consult--isearch-narrow)))
+              (concat align (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
             :group
             (lambda (cand transform)
               (if transform
                   cand
-                (alist-get (consult--tofu-get cand) consult--isearch-narrow)))
+                (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
             :lookup
             (lambda (_ candidates str)
               (if-let (found (member str candidates)) (substring (car found) 0 -1) str))
@@ -3625,13 +3625,18 @@ starts a new Isearch session otherwise."
             :narrow
             (list :predicate
                   (lambda (cand) (= (consult--tofu-get cand) consult--narrow))
-                  :keys consult--isearch-narrow))
+                  :keys consult--isearch-history-narrow))
            isearch-new-message
            (mapconcat 'isearch-text-char-description isearch-new-string "")))
     ;; Setting `isearch-regexp' etc only works outside of `with-isearch-suspended'.
     (unless (plist-member (text-properties-at 0 isearch-string) 'isearch-regexp-function)
       (setq isearch-regexp t
             isearch-regexp-function nil))))
+
+(define-obsolete-function-alias
+  'consult-isearch
+  'consult-isearch-history
+  "0.12")
 
 ;;;;; Command: consult-minor-mode-menu
 
