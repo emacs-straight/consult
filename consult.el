@@ -1087,8 +1087,8 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
         (when (and (invisible-p inv) (overlay-get ov 'isearch-open-invisible))
           (push (if-let (fun (overlay-get ov 'isearch-open-invisible-temporary))
                     (progn
-                      (funcall fun nil)
-                      (lambda () (funcall fun t)))
+                      (funcall fun ov nil)
+                      (lambda () (funcall fun ov t)))
                   (overlay-put ov 'invisible nil)
                   (lambda () (overlay-put ov 'invisible inv)))
                 restore))))))
@@ -2283,6 +2283,7 @@ These configuration options are supported:
     * :completion-styles - Use completion styles (def: `completion-styles')
     * :require-match - Require matches when completing (def: nil)
     * :prompt - The prompt string shown in the minibuffer"
+  (barf-if-buffer-read-only)
   (cl-letf* ((config (alist-get #'consult-completion-in-region consult--read-config))
              ;; Overwrite both the local and global value of `completion-styles', such that the
              ;; `completing-read' minibuffer sees the overwritten value in any case. This is
