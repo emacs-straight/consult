@@ -1447,18 +1447,22 @@ BIND is the asynchronous function binding."
   (let ((async (car bind)))
     `(let ((,async ,@(cdr bind)) (orig-chunk))
        (consult--minibuffer-with-setup-hook
-           (lambda ()
-             (when (functionp ,async)
-               (setq orig-chunk read-process-output-max
-                     read-process-output-max (max read-process-output-max consult--process-chunk))
-               (funcall ,async 'setup)
-               ;; Push input string to request refresh.
-               ;; We use a symbol in order to avoid adding lambdas to the hook variable.
-               ;; Symbol indirection because of bug#46407.
-               (let ((sym (make-symbol "consult--async-after-change")))
-                 (fset sym (lambda (&rest _) (funcall ,async (minibuffer-contents-no-properties))))
-                 (run-at-time 0 nil sym)
-                 (add-hook 'after-change-functions sym nil 'local))))
+           ;; Append such that we overwrite the completion style setting of
+           ;; `fido-mode'. See `consult--async-split' and
+           ;; `consult--split-setup'.
+           (:append
+            (lambda ()
+              (when (functionp ,async)
+                (setq orig-chunk read-process-output-max
+                      read-process-output-max (max read-process-output-max consult--process-chunk))
+                (funcall ,async 'setup)
+                ;; Push input string to request refresh.
+                ;; We use a symbol in order to avoid adding lambdas to the hook variable.
+                ;; Symbol indirection because of bug#46407.
+                (let ((sym (make-symbol "consult--async-after-change")))
+                  (fset sym (lambda (&rest _) (funcall ,async (minibuffer-contents-no-properties))))
+                  (run-at-time 0 nil sym)
+                  (add-hook 'after-change-functions sym nil 'local)))))
          (let ((,async (if (functionp ,async) ,async (lambda (_) ,async))))
            (unwind-protect
                ,(macroexp-progn body)
@@ -4231,15 +4235,32 @@ INITIAL is inital input."
 (defun consult-grep (&optional dir initial)
   "Search for regexp with grep in DIR with INITIAL input.
 
-The input string is split, the first part of the string is passed to
-the asynchronous grep process and the second part of the string is
-passed to the completion-style filtering. The input string is split at
-a punctuation character, which is given as the first character of the
-input string. The format is similar to Perl-style regular expressions,
-e.g., /regexp/. Furthermore command line options can be passed to
-grep, specified behind --.
+The input string is split, the first part of the string (grep input) is
+passed to the asynchronous grep process and the second part of the string is
+passed to the completion-style filtering.
 
-Example: #async-regexp -- grep-opts#filter-string
+The input string is split at a punctuation character, which is given as the
+first character of the input string. The format is similar to Perl-style
+regular expressions, e.g., /regexp/. Furthermore command line options can be
+passed to grep, specified behind --. The overall prompt input has the form
+`#async-input -- grep-opts#filter-string'.
+
+Note that the grep input string is transformed from Emacs regular expressions
+to Posix regular expressions. Always enter Emacs regular expressions at the
+prompt. `consult-grep' behaves like builtin Emacs search commands, e.g.,
+Isearch, which take Emacs regular expressions. Furthermore the asynchronous
+input split into words, each word must match separately and in any order. See
+`consult--regexp-compiler' for the inner workings. In order to disable
+transformations of the grep input, adjust `consult--regexp-compiler'
+accordingly.
+
+Here we give a few example inputs:
+
+#alpha beta         : Search for alpha and beta in any order.
+#alpha.*beta        : Search for alpha before beta.
+#\\(alpha\\|beta\\) : Search for alpha or beta (Note Emacs syntax!)
+#word -- -C3        : Search for word, include 3 lines as context
+#first#second       : Search for first, quick filter for second.
 
 The symbol at point is added to the future history. If `consult-grep'
 is called interactively with a prefix argument, the user can specify
