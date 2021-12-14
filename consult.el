@@ -2387,23 +2387,37 @@ These configuration options are supported:
 
 ;;;;; Function: consult-completing-read-multiple
 
+(defun consult--crm-selected ()
+  "Return selected candidates from `consult-completing-read-multiple'."
+  (when (eq minibuffer-history-variable 'consult--crm-history)
+    (mapcar
+     (apply-partially #'get-text-property 0 'consult--crm-selected)
+     (all-completions
+      "" minibuffer-completion-table
+      (lambda (cand)
+        (and (stringp cand)
+             (get-text-property 0 'consult--crm-selected cand)
+             (or (not minibuffer-completion-predicate)
+                 (funcall minibuffer-completion-predicate cand))))))))
+
 ;;;###autoload
 (defun consult-completing-read-multiple (prompt table &optional
                                                 pred require-match initial-input
                                                 hist def inherit-input-method)
   "Enhanced replacement for `completing-read-multiple'.
 See `completing-read-multiple' for the documentation of the arguments."
-  (let* ((orig-items
+  (let* ((orig-items (all-completions "" table pred))
+         (prefixed-orig-items
           (funcall
            (if-let (prefix (car consult-crm-prefix))
                (apply-partially #'mapcar (lambda (item) (propertize item 'line-prefix prefix)))
              #'identity)
-           (all-completions "" table pred)))
+           orig-items))
          (format-item
           (lambda (item)
             ;; Restore original candidate in order to preserve formatting
-            (setq item (propertize (or (car (member item orig-items)) item)
-                                   'consult--crm-selected t
+            (setq item (or (car (member item orig-items)) item)
+                  item (propertize item 'consult--crm-selected item
                                    'line-prefix (cdr consult-crm-prefix)))
             (add-face-text-property 0 (length item) 'consult-crm-selected 'append item)
             item))
@@ -2428,7 +2442,7 @@ See `completing-read-multiple' for the documentation of the arguments."
          (consult--crm-history (append (mapcar #'substring-no-properties selected) hist-val))
          (items (append selected
                         (seq-remove (lambda (x) (member x selected))
-                                    orig-items)))
+                                    prefixed-orig-items)))
          (orig-md (and (functionp table) (cdr (funcall table "" nil 'metadata))))
          (group-fun (alist-get 'group-function orig-md))
          (sort-fun
@@ -2479,7 +2493,7 @@ See `completing-read-multiple' for the documentation of the arguments."
                          consult--crm-history (append (mapcar #'substring-no-properties selected) hist-val)
                          items (append selected
                                        (seq-remove (lambda (x) (member x selected))
-                                                   orig-items)))
+                                                   prefixed-orig-items)))
                    (when overlay
                      (overlay-put overlay 'display
                                   (when selected
