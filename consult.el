@@ -5,7 +5,7 @@
 ;; Author: Daniel Mendler and Consult contributors
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
-;; Version: 0.13
+;; Version: 0.14
 ;; Package-Requires: ((emacs "26.1"))
 ;; Homepage: https://github.com/minad/consult
 
@@ -2351,7 +2351,7 @@ These configuration options are supported:
                        ;; candidate function
                        (apply-partially #'run-hook-with-args-until-success
                                         'consult--completion-candidate-hook)
-                     (let ((enable-recursive-minibuffers t))
+                     (consult--local-let ((enable-recursive-minibuffers t))
                        (if (eq category 'file)
                            ;; We use read-file-name, since many completion UIs make it nicer to
                            ;; navigate the file system this way; and we insert the initial text
