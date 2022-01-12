@@ -2250,8 +2250,8 @@ of functions and in `consult-completion-in-region'."
               ;; completed in a different buffer than the original buffer. This completion is
               ;; probably also problematic in my Corfu completion package.
               (not (eq (window-buffer) (current-buffer)))
-	      (and (markerp start) (not (eq (marker-buffer start) (current-buffer))))
-	      (and (markerp end) (not (eq (marker-buffer end) (current-buffer)))))
+              (and (markerp start) (not (eq (marker-buffer start) (current-buffer))))
+              (and (markerp end) (not (eq (marker-buffer end) (current-buffer)))))
     (let (ov)
       (lambda (cand restore)
         (if restore
@@ -2315,8 +2315,8 @@ These configuration options are supported:
                 completion-extra-properties)))
     ;; error if `threshold' is t or the improper list `all' is too short
     (if (and threshold
-	     (or (not (consp (ignore-errors (nthcdr threshold all))))
-		 (and completion-cycling completion-all-sorted-completions)))
+             (or (not (consp (ignore-errors (nthcdr threshold all))))
+                 (and completion-cycling completion-all-sorted-completions)))
         (completion--in-region start end collection predicate)
       (let* ((limit (car (completion-boundaries initial collection predicate "")))
              (category (completion-metadata-get metadata 'category))
@@ -2890,10 +2890,10 @@ QUERY can be set to a plist according to `consult--buffer-query'."
           ;; Use the same behavior as `keep-lines'.
           (let ((rbeg (region-beginning))
                 (rend (save-excursion
-		        (goto-char (region-end))
-		        (unless (or (bolp) (eobp))
-		          (forward-line 0))
-		        (point))))
+                        (goto-char (region-end))
+                        (unless (or (bolp) (eobp))
+                          (forward-line 0))
+                        (point))))
             (consult--fontify-region rbeg rend)
             (narrow-to-region rbeg rend)
             (consult--each-line beg end
@@ -2995,7 +2995,7 @@ INITIAL is the initial input."
 
 (defun consult--focus-lines-state (filter)
   "State function for `consult-focus-lines' with FILTER function."
-  (let ((lines) (overlays) (last-input) (point-orig (point)))
+  (let (lines overlays last-input pt-orig pt-min pt-max)
     (save-excursion
       (save-restriction
         (if (not (use-region-p))
@@ -3006,52 +3006,71 @@ INITIAL is the initial input."
            ;; Behave the same as `keep-lines'.
            ;; Move to the next line.
            (save-excursion
-	     (goto-char (region-end))
-	     (unless (or (bolp) (eobp))
-	       (forward-line 0))
-	     (point))))
-        (consult--each-line beg end
-          (push (buffer-substring-no-properties beg end) lines)
-          (push (make-overlay beg (1+ end)) overlays))))
-    (unless (use-region-p)
-      (goto-char (point-min)))
+             (goto-char (region-end))
+             (unless (or (bolp) (eobp))
+               (forward-line 0))
+             (point))))
+        (setq pt-orig (point) pt-min (point-min) pt-max (point-max))
+        (let ((i 0))
+          (consult--each-line beg end
+            ;; NOTE: Use "\n" for empty lines, since we need
+            ;; a string to attach the text property to.
+            (let ((line (if (eq beg end) (char-to-string ?\n)
+                          (buffer-substring-no-properties beg end))))
+              (put-text-property 0 1 'consult--focus-line (cons (cl-incf i) beg) line)
+              (push line lines)))
+          (setq lines (nreverse lines)))))
     (lambda (input restore)
       ;; New input provided -> Update
       (when (and input (not (equal input last-input)))
-        (if (string-match-p "\\`!? ?\\'" input)
-            ;; Special case the empty input for performance.
-            (progn
-              (dolist (ov overlays)
-                (overlay-put ov 'invisible nil))
-              (setq last-input input))
-          (let* ((not (string-prefix-p "! " input))
-                 (stripped (string-remove-prefix "! " input))
-                 ;; Heavy computation is interruptible if *not* committing!
-                 (ht (if restore
-                         (consult--string-hash (funcall filter stripped lines))
-                       (while-no-input
-                         (consult--string-hash (funcall filter stripped lines))))))
-            (when (hash-table-p ht)
-              (let ((ov overlays) (li lines))
-                (while ov
-                  (overlay-put (car ov) 'invisible (eq not (gethash (car li) ht)))
-                  (setq li (cdr li) ov (cdr ov))))
-              (setq last-input input)))))
+        (let (new-overlays)
+          (pcase (while-no-input
+                   (unless (string-match-p "\\`!? ?\\'" input) ;; empty input.
+                     (let* ((inhibit-quit restore) ;; Non interruptible, when quitting!
+                            (not (string-prefix-p "! " input))
+                            (stripped (string-remove-prefix "! " input))
+                            (matches (funcall filter stripped lines))
+                            (old-ind 0)
+                            (block-beg pt-min)
+                            (block-end pt-min))
+                       (while old-ind
+                         (let ((match (pop matches)) (ind nil) (beg pt-max) (end pt-max) prop)
+                           (when match
+                             (setq prop (get-text-property 0 'consult--focus-line match)
+                                   ind (car prop)
+                                   beg (cdr prop)
+                                   ;; NOTE: Check for empty lines, see above!
+                                   end (+ 1 beg (if (equal match "\n") 0 (length match)))))
+                           (unless (eq ind (1+ old-ind))
+                             (let ((a (if not block-beg block-end))
+                                   (b (if not block-end beg)))
+                               (when (/= a b)
+                                 (push (consult--overlay a b 'invisible t) new-overlays)))
+                             (setq block-beg beg))
+                           (setq block-end end old-ind ind)))))
+                   'commit)
+            ('commit
+             (mapc #'delete-overlay overlays)
+             (setq last-input input overlays new-overlays))
+            (_ (mapc #'delete-overlay new-overlays)))))
       (when restore
         (cond
          ((not input)
-          (goto-char point-orig))
+          (mapc #'delete-overlay overlays)
+          (goto-char pt-orig))
          ((equal input "")
-          (consult-focus-lines 'show))
+          (consult-focus-lines 'show)
+          (goto-char pt-orig))
          (t
           ;; Sucessfully terminated -> Remember invisible overlays
-          (dolist (ov overlays)
-            (if (overlay-get ov 'invisible)
-                (push ov consult--focus-lines-overlays)
-              (delete-overlay ov)))
-          (setq overlays nil)))
-        ;; Destroy remaining overlays
-        (mapc #'delete-overlay overlays)))))
+          (setq consult--focus-lines-overlays
+                (nconc consult--focus-lines-overlays overlays))
+          ;; move point past invisible
+          (goto-char (if-let (ov (and (invisible-p pt-orig)
+                                      (seq-find (lambda (ov) (overlay-get ov 'invisible))
+                                                (overlays-at pt-orig))))
+                         (overlay-end ov)
+                       pt-orig))))))))
 
 ;;;###autoload
 (defun consult-focus-lines (&optional show filter initial)
@@ -3500,8 +3519,8 @@ This command can act as a drop-in replacement for `repeat-complex-command'."
     ;; Taken from `repeat-complex-command'
     (add-to-history 'command-history cmd)
     (apply #'funcall-interactively
-	   (car cmd)
-	   (mapcar (lambda (e) (eval e t)) (cdr cmd)))))
+           (car cmd)
+           (mapcar (lambda (e) (eval e t)) (cdr cmd)))))
 
 ;;;;; Command: consult-history
 
@@ -3828,7 +3847,7 @@ QUERY is passed to `consult--buffer-query'."
                   (if (= count 1) "" "s")
                   (cond
                    ((and ndir (eq dir 'project))
-	            (format ", Project %s" (consult--project-name ndir)))
+                    (format ", Project %s" (consult--project-name ndir)))
                    (ndir (concat  ", " (consult--abbreviate-directory ndir)))
                    (t "")))
           buffers)))
