@@ -78,7 +78,8 @@ The key must be either a string or a vector.
 This is the key representation accepted by `define-key'."
   :type '(choice key-sequence (const nil)))
 
-(defcustom consult-project-root-function nil
+(defcustom consult-project-root-function
+  #'consult--project-root-default-function
   "Function which returns project root directory.
 
 The root directory is used by `consult-buffer' and `consult-grep'."
@@ -205,8 +206,14 @@ character, the *Completions* buffer and a few log buffers."
     consult--source-project-buffer
     consult--source-project-recent-file)
   "Sources used by `consult-buffer'.
+See also `consult-project-buffer-sources'.
+See `consult--multi' for a description of the source data structure."
+  :type '(repeat symbol))
 
-See `consult--multi' for a description of the source values."
+(defcustom consult-project-buffer-sources nil
+  "Sources used by `consult-project-buffer'.
+See also `consult-buffer-sources'.
+See `consult--multi' for a description of the source data structure."
   :type '(repeat symbol))
 
 (defcustom consult-mode-command-filter
@@ -794,7 +801,7 @@ The line beginning/ending BEG/END is bound in BODY."
                        local)))))))
 
 (defun consult--abbreviate-directory (dir)
-  "Return abbreviated directory DIR for use in prompts."
+  "Return abbreviated directory DIR for use in `completing-read' prompt."
   (save-match-data
     (let ((adir (abbreviate-file-name dir)))
       (if (string-match "/\\([^/]+\\)/\\([^/]+\\)/\\'" adir)
@@ -835,6 +842,13 @@ Otherwise the `default-directory' is returned."
        (concat prompt ": "))
       (t (format "%s (%s): " prompt (consult--abbreviate-directory dir))))
      edir)))
+
+(defun consult--project-root-default-function ()
+  "Return project root directory."
+  (when-let (proj (project-current))
+    (cond
+     ((fboundp 'project-root) (project-root proj))
+     ((fboundp 'project-roots) (car (project-roots proj))))))
 
 (defun consult--project-root ()
   "Return project root as absolute path."
@@ -1051,7 +1065,11 @@ MARKER is the cursor position."
          (dir default-directory))
     (lambda (&optional name)
       (if name
-          (let ((default-directory dir))
+          (let ((default-directory dir)
+                (inhibit-message t)
+                (enable-dir-local-variables nil)
+                (enable-local-variables (and enable-local-variables :safe))
+                (non-essential t))
             (or (get-file-buffer name)
                 ;; file-attributes may throw permission denied error
                 (when-let* ((attrs (ignore-errors (file-attributes name)))
@@ -1063,10 +1081,6 @@ MARKER is the cursor position."
                     (cl-letf* (((default-value 'find-file-hook)
                                 (seq-remove (lambda (x) (memq x consult-preview-excluded-hooks))
                                             (default-value 'find-file-hook)))
-                               (inhibit-message t)
-                               (non-essential t)
-                               (enable-dir-local-variables nil)
-                               (enable-local-variables (and enable-local-variables :safe))
                                (buf (find-file-noselect
                                      name 'nowarn
                                      (> size consult-preview-raw-size))))
@@ -4067,6 +4081,20 @@ order to determine the project-specific files and buffers, the
     ;; create a new buffer with the name.
     (unless (cdr buffer)
       (consult--buffer-action (car buffer)))))
+
+;; Populate `consult-project-buffer-sources'.
+(setq consult-project-buffer-sources
+      (list
+       `(:hidden nil :narrow ?b ,@consult--source-project-buffer)
+       `(:hidden nil :narrow ?f ,@consult--source-project-recent-file)))
+
+;;;###autoload
+(defun consult-project-buffer ()
+  "Enhanced `project-switch-to-buffer' command with support for virtual buffers.
+See `consult-buffer' for more details."
+  (interactive)
+  (let ((consult-buffer-sources consult-project-buffer-sources))
+    (consult-buffer)))
 
 ;;;###autoload
 (defun consult-buffer-other-window ()

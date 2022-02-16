@@ -90,6 +90,7 @@ their descriptions.
  #+findex: consult-buffer
  #+findex: consult-buffer-other-window
  #+findex: consult-buffer-other-frame
+ #+findex: consult-project-buffer
  #+findex: consult-recent-file
  #+findex: consult-bookmark
  - =consult-buffer= (=-other-window=, =-other-frame=): Enhanced version
@@ -100,9 +101,11 @@ their descriptions.
    - b Buffers
    - f Files (Requires =recentf-mode=)
    - m Bookmarks
-   - p Project (Requires configuration of the =consult-project-root-function=
-     as shown in the [[#use-package-example][example configuration]]).
-   - Arbitrary [[#multiple-sources][other sources]] configured in =consult-buffer-sources=.
+   - p Project
+   - Custom [[#multiple-sources][other sources]] configured in =consult-buffer-sources=.
+ - =consult-project-buffer=: Variant of =consult-buffer= restricted to buffers and
+   recent files of the current project. You can add custom sources to
+   =consult-project-buffer-sources=.
  - =consult-bookmark=: Select or create bookmark. To select bookmarks you might use the
    =consult-buffer= as an alternative, which can include a bookmark virtual buffer
    source. Note that =consult-bookmark= supports preview of bookmarks and
@@ -253,10 +256,10 @@ their descriptions.
    =filter-string= is passed to the /fast/ Emacs filtering to further narrow down
    the list of matches. This is particularly useful if you are using an advanced
    completion style like orderless. =consult-grep= supports preview. If the
-   =consult-project-root-function= is [[#use-package-example][configured]] and returns non-nil, =consult-grep=
-   searches the current project directory. Otherwise the =default-directory= is
-   searched. If =consult-grep= is invoked with prefix argument =C-u M-s g=, you can
-   specify the directory manually.
+   =consult-project-root-function= returns non-nil, =consult-grep= searches the
+   current project directory. Otherwise the =default-directory= is searched. If
+   =consult-grep= is invoked with prefix argument =C-u M-s g=, you can specify the
+   directory manually.
  - =consult-find=, =consult-locate=: Find file by
    matching the path against a regexp. Like for =consult-grep,= either the project
    root or the current directory is the root directory for the search. The input
@@ -444,7 +447,8 @@ their descriptions.
    (consult-customize
     consult-ripgrep consult-git-grep consult-grep
     consult-bookmark consult-recent-file consult-xref
-    consult--source-recent-file consult--source-project-recent-file consult--source-bookmark
+    consult--source-bookmark consult--source-recent-file
+    consult--source-project-recent-file
     :preview-key (kbd "M-."))
  #+end_src
 
@@ -632,8 +636,8 @@ their descriptions.
 
   #+begin_src emacs-lisp
     (consult-customize
-     consult--source-recent-file consult--source-project-recent-file consult--source-bookmark
-     :preview-key (kbd "M-."))
+     consult--source-bookmark consult--source-recent-file
+     consult--source-project-recent-file :preview-key (kbd "M-."))
   #+end_src
 
   Sources can be added directly to the =consult-buffer-source= list for
@@ -795,6 +799,7 @@ configuration examples.
             ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
             ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
             ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+            ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
             ;; Custom M-# bindings for fast register access
             ("M-#" . consult-register-load)
             ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
@@ -872,7 +877,8 @@ configuration examples.
       :preview-key '(:debounce 0.2 any)
       consult-ripgrep consult-git-grep consult-grep
       consult-bookmark consult-recent-file consult-xref
-      consult--source-recent-file consult--source-project-recent-file consult--source-bookmark
+      consult--source-bookmark consult--source-recent-file
+      consult--source-project-recent-file
       :preview-key (kbd "M-."))
 
      ;; Optionally configure the narrowing key.
@@ -883,13 +889,11 @@ configuration examples.
      ;; You may want to use `embark-prefix-help-command' or which-key instead.
      ;; (define-key consult-narrow-map (vconcat consult-narrow-key "?") #'consult-narrow-help)
 
-     ;; Optionally configure a function which returns the project root directory.
+     ;; By default `consult-project-root-function' uses `project-root' from project.el.
+     ;; Optionally configure a different project root function.
      ;; There are multiple reasonable alternatives to chose from.
-     ;;;; 1. project.el (project-roots)
-     (setq consult-project-root-function
-           (lambda ()
-             (when-let (project (project-current))
-               (car (project-roots project)))))
+     ;;;; 1. project.el (the default)
+     ;; (setq consult-project-root-function #'consult--project-root-default-function)
      ;;;; 2. projectile.el (projectile-project-root)
      ;; (autoload 'projectile-project-root "projectile")
      ;; (setq consult-project-root-function #'projectile-project-root)
@@ -945,6 +949,7 @@ configuration examples.
  | consult-preview-max-count        | Maximum number of files to keep open during preview   |
  | consult-preview-max-size         | Files larger than this size are not previewed         |
  | consult-preview-raw-size         | Files larger than this size are previewed in raw form |
+ | consult-project-buffer-sources   | List of virtual project buffer sources                |
  | consult-project-root-function    | Function which returns current project root           |
  | consult-recent-file-filter       | Filter for =consult-recent-file=                        |
  | consult-register-narrow          | Narrowing configuration for =consult-register=          |
@@ -1183,6 +1188,7 @@ Advice and useful discussions:
 - [[https://github.com/iyefrat][Itai Y. Efrat]]
 - [[https://github.com/bdarcus][Bruce d'Arcus]]
 - [[https://github.com/jdtsmith][J.D. Smith]]
+- [[https://github.com/Qkessler][Enrique Kessler Martínez]]
 
 Authors of supplementary =consult-*= packages:
 

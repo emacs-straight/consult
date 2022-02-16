@@ -2,6 +2,13 @@
 #+author: Daniel Mendler
 #+language: en
 
+* Development
+
+- Preconfigure =consult-project-root-function= with a default function based
+  on project.el.
+- Add =consult-project-buffer=, a variant of =consult-buffer= restricted to the
+  current project.
+
 * Version 0.15 (2022-01-31)
 
 - Bugfixes
