@@ -460,13 +460,12 @@ should not be considered as stable as the public API.")
 This function can be called by custom completion systems from
 outside the minibuffer.")
 
-(defconst consult--tofu-char #x100000
+(defconst consult--tofu-char #x200000
   "Special character used to encode line prefixes for disambiguation.
-We use the first character of the private unicode plane b.")
+We use invalid characters outside the Unicode range.")
 
-(defconst consult--tofu-range #xFFFE
-  "Special character range.
-Size of private unicode plane b.")
+(defconst consult--tofu-range #x100000
+  "Special character range.")
 
 (defvar-local consult--narrow nil
   "Current narrowing key.")
@@ -843,16 +842,24 @@ Otherwise the `default-directory' is returned."
       (t (format "%s (%s): " prompt (consult--abbreviate-directory dir))))
      edir)))
 
-(defun consult--project-root-default-function ()
-  "Return project root directory."
-  (when-let (proj (project-current))
+(defun consult--project-root-default-function (&optional maybe-prompt)
+  "Return project root directory.
+When no project is found and MAYBE-PROMPT is non-nil ask the user."
+  (when-let (proj (project-current maybe-prompt))
     (cond
      ((fboundp 'project-root) (project-root proj))
      ((fboundp 'project-roots) (car (project-roots proj))))))
 
-(defun consult--project-root ()
-  "Return project root as absolute path."
-  (when-let (root (and consult-project-root-function (funcall consult-project-root-function)))
+(defun consult--project-root (&optional maybe-prompt)
+  "Return project root as absolute path.
+When no project is found and MAYBE-PROMPT is non-nil ask the user."
+  (when-let (root (and consult-project-root-function
+                       (if maybe-prompt
+                           (condition-case nil
+                               (funcall consult-project-root-function t)
+                             (wrong-number-of-arguments
+                              (funcall consult-project-root-function)))
+                         (funcall consult-project-root-function))))
     (expand-file-name root)))
 
 (defun consult--project-name (dir)
@@ -1062,6 +1069,7 @@ MARKER is the cursor position."
 (defun consult--temporary-files ()
   "Return a function to open files temporarily."
   (let* ((new-buffers)
+         (old-buffers (buffer-list))
          (dir default-directory))
     (lambda (&optional name)
       (if name
@@ -1070,26 +1078,33 @@ MARKER is the cursor position."
                 (enable-dir-local-variables nil)
                 (enable-local-variables (and enable-local-variables :safe))
                 (non-essential t))
-            (or (get-file-buffer name)
-                ;; file-attributes may throw permission denied error
-                (when-let* ((attrs (ignore-errors (file-attributes name)))
-                            (size (file-attribute-size attrs)))
-                  (if (> size consult-preview-max-size)
+            (or
+             ;; get-file-buffer is only a small optimization here. It
+             ;; may not find the actual buffer, for directories it
+             ;; returns nil instead of returning the Dired buffer.
+             (get-file-buffer name)
+             ;; file-attributes may throw permission denied error
+             (when-let* ((attrs (ignore-errors (file-attributes name)))
+                         (size (file-attribute-size attrs)))
+               (if (> size consult-preview-max-size)
                       (prog1 nil
                         (message "File `%s' (%s) is too large for preview"
                                  name (file-size-human-readable size)))
-                    (cl-letf* (((default-value 'find-file-hook)
-                                (seq-remove (lambda (x) (memq x consult-preview-excluded-hooks))
-                                            (default-value 'find-file-hook)))
-                               (buf (find-file-noselect
-                                     name 'nowarn
-                                     (> size consult-preview-raw-size))))
-                      (push buf new-buffers)
-                      ;; Only keep a few buffers alive
-                      (while (> (length new-buffers) consult-preview-max-count)
-                        (consult--kill-clean-buffer (car (last new-buffers)))
-                        (setq new-buffers (nbutlast new-buffers)))
-                      buf)))))
+                 (cl-letf* (((default-value 'find-file-hook)
+                             (seq-remove (lambda (x)
+                                           (memq x consult-preview-excluded-hooks))
+                                         (default-value 'find-file-hook)))
+                            (buf (find-file-noselect
+                                  name 'nowarn
+                                  (> size consult-preview-raw-size))))
+                   ;; Only add new buffer if not already in the list
+                   (unless (or (memq buf new-buffers) (memq buf old-buffers))
+                     (push buf new-buffers)
+                     ;; Only keep a few buffers alive
+                     (while (> (length new-buffers) consult-preview-max-count)
+                       (consult--kill-clean-buffer (car (last new-buffers)))
+                       (setq new-buffers (nbutlast new-buffers))))
+                   buf)))))
         (mapc #'consult--kill-clean-buffer new-buffers)))))
 
 (defun consult--invisible-open-permanently ()
@@ -1915,8 +1930,8 @@ PREVIEW-KEY are the preview keys."
 ;; We must disambiguate the lines by adding a prefix such that two lines with
 ;; the same text can be distinguished. In order to avoid matching the line
 ;; number, such that the user can search for numbers with `consult-line', we
-;; encode the line number as unicode characters in the supplementary private use
-;; plane b. By doing that, it is unlikely that accidential matching occurs.
+;; encode the line number as characters outside the unicode range.
+;; By doing that, no accidential matching can occur.
 (defun consult--tofu-encode (n)
   "Return tofu-encoded number N."
   (let ((str ""))
@@ -4061,17 +4076,18 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
   "Recent file candidate source for `consult-buffer'.")
 
 ;;;###autoload
-(defun consult-buffer ()
+(defun consult-buffer (&optional sources)
   "Enhanced `switch-to-buffer' command with support for virtual buffers.
 
-The command supports recent files, bookmarks, views and project files as virtual
-buffers. Buffers are previewed. Furthermore narrowing to buffers (b), files (f),
-bookmarks (m) and project files (p) is supported via the corresponding keys. In
-order to determine the project-specific files and buffers, the
-`consult-project-root-function' is used. See `consult-buffer-sources' and
-`consult--multi' for the configuration of the virtual buffer sources."
+The command supports recent files, bookmarks, views and project files as
+virtual buffers. Buffers are previewed. Narrowing to buffers (b), files (f),
+bookmarks (m) and project files (p) is supported via the corresponding
+keys. In order to determine the project-specific files and buffers, the
+`consult-project-root-function' is used. The virtual buffer SOURCES
+default to `consult-buffer-sources'. See `consult--multi' for the
+configuration of the virtual buffer sources."
   (interactive)
-  (when-let (buffer (consult--multi consult-buffer-sources
+  (when-let (buffer (consult--multi (or sources consult-buffer-sources)
                                     :require-match
                                     (confirm-nonexistent-file-or-buffer)
                                     :prompt "Switch to: "
@@ -4088,13 +4104,31 @@ order to determine the project-specific files and buffers, the
        `(:hidden nil :narrow ?b ,@consult--source-project-buffer)
        `(:hidden nil :narrow ?f ,@consult--source-project-recent-file)))
 
+(defmacro consult--with-project (&rest body)
+  "Ensure that BODY is executed with a project root."
+  ;; We have to work quite hard here to ensure that the project root is
+  ;; only overriden at the current recursion level. When entering a
+  ;; recursive minibuffer session, we should be able to still switch the
+  ;; project. But who does that? Working on the first level on project A
+  ;; and on the second level on project B and on the third level on project C?
+  ;; You mustn't be afraid to dream a little bigger, darling.
+  `(let ((consult-project-root-function
+          (let ((root (or (consult--project-root t) (user-error "No project found")))
+                (depth (recursion-depth))
+                (orig consult-project-root-function))
+            (lambda (&rest args)
+              (if (= depth (recursion-depth))
+                  root
+                (apply orig args))))))
+     ,@body))
+
 ;;;###autoload
 (defun consult-project-buffer ()
   "Enhanced `project-switch-to-buffer' command with support for virtual buffers.
 See `consult-buffer' for more details."
   (interactive)
-  (let ((consult-buffer-sources consult-project-buffer-sources))
-    (consult-buffer)))
+  (consult--with-project
+    (consult-buffer consult-project-buffer-sources)))
 
 ;;;###autoload
 (defun consult-buffer-other-window ()
