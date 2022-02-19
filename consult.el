@@ -308,7 +308,10 @@ don't want to see epa password prompts."
     (?d "Docview" ,#'doc-view-bookmark-jump)
     (?m "Man" ,#'Man-bookmark-jump)
     (?w "Woman" ,#'woman-bookmark-jump)
-    (?g "Gnus" ,#'gnus-summary-bookmark-jump))
+    (?g "Gnus" ,#'gnus-summary-bookmark-jump)
+    ;; Introduced on Emacs 28
+    (?s "Eshell" eshell-bookmark-jump)
+    (?e "Eww" eww-bookmark-jump))
   "Bookmark narrowing configuration.
 
 Each element of the list must have the form '(char name handler)."
@@ -990,7 +993,7 @@ When no project is found and MAYBE-PROMPT is non-nil ask the user."
           (point-marker))))))
 
 (defun consult--line-group (cand transform)
-  "Group function used by `consult-line-all' and `consult-line-project'.
+  "Group function used by `consult-line-multi'.
 If TRANSFORM non-nil, return transformed CAND, otherwise return title."
   (if transform
       cand
