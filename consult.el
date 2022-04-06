@@ -79,7 +79,8 @@ This is the key representation accepted by `define-key'."
   :type '(choice key-sequence (const nil)))
 
 (defvar consult-project-root-function nil)
-(make-obsolete-variable 'consult-project-root-function "Deprecated in favor of `consult-project-function'." "0.15")
+(make-obsolete-variable 'consult-project-root-function
+                        "Deprecated in favor of `consult-project-function'." "0.15")
 
 (defcustom consult-project-function
   #'consult--default-project-function
@@ -287,7 +288,7 @@ The dynamically computed arguments are appended."
   "Files larger than this byte limit are not previewed."
   :type 'integer)
 
-(defcustom consult-preview-raw-size 102400
+(defcustom consult-preview-raw-size 524288
   "Files larger than this byte limit are previewed in raw form."
   :type 'integer)
 
@@ -295,14 +296,28 @@ The dynamically computed arguments are appended."
   "Number of files to keep open at once during preview."
   :type 'integer)
 
-(defcustom consult-preview-excluded-hooks
-  '(epa-file-find-file-hook
-    recentf-track-opened-file
-    vc-refresh-state)
-  "List of `find-file' hooks, which should not be executed during file preview.
-In particular we don't want to modify the list of recent files and we
-don't want to see epa password prompts."
+(defvar consult-preview-excluded-hooks nil)
+(make-obsolete-variable 'consult-preview-excluded-hooks
+                        "Deprecated in favor of `consult-preview-allowed-hooks'." "0.16")
+
+(defcustom consult-preview-allowed-hooks
+  '(global-font-lock-mode-check-buffers
+    save-place-find-file-hook)
+  "List of `find-file' hooks, which should be executed during file preview."
   :type '(repeat symbol))
+
+(defcustom consult-preview-variables
+  '((inhibit-message . t)
+    (enable-dir-local-variables . nil)
+    (enable-local-variables . :safe)
+    (non-essential . t)
+    (delay-mode-hooks . t)
+    (org-startup-with-inline-images . nil)
+    (org-startup-with-latex-preview . nil)
+    (latexenc-dont-use-tex-guess-main-file-flag . t)
+    (latexenc-dont-use-TeX-master-flag . t))
+  "Variables which are bound for file preview."
+  :type '(alist :key-type symbol))
 
 (defcustom consult-bookmark-narrow
   `((?f "File" ,#'bookmark-default-handler)
@@ -927,6 +942,11 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
         (lambda (cand) (eq (get-text-property 0 'consult--type cand) consult--narrow))
         :keys types))
 
+(defun consult--completion-window-p ()
+  "Return non-nil if the selected window belongs to the completion UI."
+  (or (eq (selected-window) (active-minibuffer-window))
+      (string-match-p "\\`\\*Completions\\*" (buffer-name (window-buffer)))))
+
 (defmacro consult--with-location-upgrade (candidates &rest body)
   "Upgrade location markers from CANDIDATES on window selection change.
 The markers are not upgraded when BODY has finished without a window change."
@@ -935,7 +955,7 @@ The markers are not upgraded when BODY has finished without a window change."
     `(let ((,hook (make-symbol "consult--location-upgrade")))
        (fset ,hook
              (lambda (_)
-               (unless (eq (selected-window) (active-minibuffer-window))
+               (unless (consult--completion-window-p)
                  (remove-hook 'window-selection-change-functions ,hook)
                  (mapc #'consult--get-location ,candidates))))
        (unwind-protect
@@ -1108,8 +1128,36 @@ MARKER is the cursor position."
 
 ;;;; Preview support
 
+(defun consult--find-file-temporarily (name)
+  "Open file NAME temporarily for preview."
+  (cl-letf ((orig (mapcar (pcase-lambda (`(,k . ,_))
+                            (list k
+                                  (and (boundp k) (default-value k))
+                                  (and (boundp k) (symbol-value k))))
+                          consult-preview-variables))
+            ((default-value 'find-file-hook)
+             (seq-filter (lambda (x)
+                           (memq x consult-preview-allowed-hooks))
+                         (default-value 'find-file-hook))))
+    (unwind-protect
+        (progn
+          (pcase-dolist (`(,k . ,v) consult-preview-variables)
+            (set-default k v)
+            (set k v))
+          ;; file-attributes may throw permission denied error
+          (when-let* ((attrs (ignore-errors (file-attributes name)))
+                      (size (file-attribute-size attrs)))
+            (if (<= size consult-preview-max-size)
+                (find-file-noselect name 'nowarn (> size consult-preview-raw-size))
+              (message "File `%s' (%s) is too large for preview"
+                       name (file-size-human-readable size))
+              nil)))
+      (pcase-dolist (`(,k ,d ,v) orig)
+        (set-default k d)
+        (set k v)))))
+
 (defun consult--temporary-files ()
-  "Return a function to open files temporarily."
+  "Return a function to open files temporarily for preview."
   (let ((dir default-directory)
         (hook (make-symbol "consult--temporary-files"))
         (orig-buffers (buffer-list))
@@ -1117,7 +1165,7 @@ MARKER is the cursor position."
     (fset hook
           (lambda (_)
             ;; Fully initialize previewed files and keep them alive.
-            (unless (eq (selected-window) (active-minibuffer-window))
+            (unless (consult--completion-window-p)
               (let (live-files)
                 (dolist (buf temporary-buffers)
                   (when-let ((file (buffer-file-name buf))
@@ -1125,7 +1173,7 @@ MARKER is the cursor position."
                                         (get-buffer-window-list buf))))
                     (push (cons file (mapcar
                                       (lambda (win)
-                                        (cons win (window-state-get win t)))
+                                        (list (window-state-get win t) win))
                                       wins))
                           live-files))
                   (kill-buffer buf))
@@ -1133,45 +1181,26 @@ MARKER is the cursor position."
                 (pcase-dolist (`(,file . ,wins) live-files)
                   (when-let (buf (find-file-noselect file))
                     (push buf orig-buffers)
-                    (pcase-dolist (`(,win . ,state) wins)
-                      (set-window-buffer win buf)
-                      (window-state-put win state))))))))
+                    (dolist (state wins)
+                      (apply #'window-state-put state))))))))
     (lambda (&optional name)
       (if name
-          (let ((default-directory dir)
-                (inhibit-message t)
-                (enable-dir-local-variables nil)
-                (enable-local-variables (and enable-local-variables :safe))
-                (non-essential t))
-            (or
+          (let ((default-directory dir))
              ;; get-file-buffer is only a small optimization here. It
              ;; may not find the actual buffer, for directories it
              ;; returns nil instead of returning the Dired buffer.
-             (get-file-buffer name)
-             ;; file-attributes may throw permission denied error
-             (when-let* ((attrs (ignore-errors (file-attributes name)))
-                         (size (file-attribute-size attrs)))
-               (if (> size consult-preview-max-size)
-                      (prog1 nil
-                        (message "File `%s' (%s) is too large for preview"
-                                 name (file-size-human-readable size)))
-                 (cl-letf* (((default-value 'delay-mode-hooks) t)
-                            ((default-value 'find-file-hook)
-                             (seq-remove (lambda (x)
-                                           (memq x consult-preview-excluded-hooks))
-                                         (default-value 'find-file-hook)))
-                            (buf (find-file-noselect
-                                  name 'nowarn
-                                  (> size consult-preview-raw-size))))
+             (or (get-file-buffer name)
+                 (when-let (buf (consult--find-file-temporarily name))
                    ;; Only add new buffer if not already in the list
                    (unless (or (memq buf temporary-buffers) (memq buf orig-buffers))
                      (add-hook 'window-selection-change-functions hook)
                      (push buf temporary-buffers)
+                     (with-current-buffer buf (setq buffer-read-only t))
                      ;; Only keep a few buffers alive
                      (while (> (length temporary-buffers) consult-preview-max-count)
                        (kill-buffer (car (last temporary-buffers)))
                        (setq temporary-buffers (nbutlast temporary-buffers))))
-                   buf)))))
+                   buf)))
         (remove-hook 'window-selection-change-functions hook)
         (mapc #'kill-buffer temporary-buffers)))))
 
@@ -1201,7 +1230,7 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
                 restore))))
     restore))
 
-(defun consult--jump-nomark (pos)
+(defun consult--jump-1 (pos)
   "Go to POS and recenter."
   (cond
    ((and (markerp pos) (not (marker-buffer pos)))
@@ -1215,8 +1244,7 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
     ;; Widen if we cannot jump to the position (idea from flycheck-jump-to-error)
     (unless (= (goto-char pos) (point))
       (widen)
-      (goto-char pos))
-    (run-hooks 'consult-after-jump-hook))))
+      (goto-char pos)))))
 
 (defun consult--jump (pos)
   "Push current position to mark ring, go to POS and recenter."
@@ -1225,8 +1253,9 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
     ;; record previous location such that the user can jump back quickly.
     (unless (and (markerp pos) (not (eq (current-buffer) (marker-buffer pos))))
       (push-mark (point) t))
-    (consult--jump-nomark pos)
-    (consult--invisible-open-permanently))
+    (consult--jump-1 pos)
+    (consult--invisible-open-permanently)
+    (run-hooks 'consult-after-jump-hook))
   nil)
 
 ;; Matched strings are not highlighted as of now.
@@ -1247,7 +1276,8 @@ FACE is the cursor face."
       (mapc #'delete-overlay overlays)
       (setq invisible nil overlays nil)
       (cond
-       (restore
+       ;; If position cannot be previewed, return to saved position
+       ((or restore (not cand))
         (let ((saved-buffer (marker-buffer saved-pos)))
           (if (not saved-buffer)
               (message "Buffer is dead")
@@ -1256,7 +1286,7 @@ FACE is the cursor face."
             (goto-char saved-pos))))
        ;; Jump to position
        (cand
-        (consult--jump-nomark cand)
+        (consult--jump-1 cand)
         (setq invisible (consult--invisible-open-temporarily)
               overlays
               (list (save-excursion
@@ -1268,9 +1298,8 @@ FACE is the cursor face."
                                           'window (selected-window))))
                     (consult--overlay (point) (1+ (point))
                                       'face face
-                                      'window (selected-window)))))
-       ;; If position cannot be previewed, return to saved position
-       (t (consult--jump-nomark saved-pos))))))
+                                      'window (selected-window))))
+        (run-hooks 'consult-after-jump-hook))))))
 
 (defun consult--jump-state (&optional face)
   "The state function used if selecting from a list of candidate positions.
