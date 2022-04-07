@@ -311,11 +311,7 @@ The dynamically computed arguments are appended."
     (enable-dir-local-variables . nil)
     (enable-local-variables . :safe)
     (non-essential . t)
-    (delay-mode-hooks . t)
-    (org-startup-with-inline-images . nil)
-    (org-startup-with-latex-preview . nil)
-    (latexenc-dont-use-tex-guess-main-file-flag . t)
-    (latexenc-dont-use-TeX-master-flag . t))
+    (delay-mode-hooks . t))
   "Variables which are bound for file preview."
   :type '(alist :key-type symbol))
 
@@ -945,7 +941,7 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
 (defun consult--completion-window-p ()
   "Return non-nil if the selected window belongs to the completion UI."
   (or (eq (selected-window) (active-minibuffer-window))
-      (string-match-p "\\`\\*Completions\\*" (buffer-name (window-buffer)))))
+      (eq #'completion-list-mode (buffer-local-value 'major-mode (window-buffer)))))
 
 (defmacro consult--with-location-upgrade (candidates &rest body)
   "Upgrade location markers from CANDIDATES on window selection change.
@@ -1130,18 +1126,20 @@ MARKER is the cursor position."
 
 (defun consult--find-file-temporarily (name)
   "Open file NAME temporarily for preview."
-  (cl-letf ((orig (mapcar (pcase-lambda (`(,k . ,_))
-                            (list k
-                                  (and (boundp k) (default-value k))
-                                  (and (boundp k) (symbol-value k))))
-                          consult-preview-variables))
+  (cl-letf ((vars (delq nil
+                        (mapcar (pcase-lambda (`(,k . ,v))
+                                  (if (boundp k)
+                                      (list k v (default-value k) (symbol-value k))
+                                    (message "consult-preview-variables: The variable `%s' is not bound" k)
+                                    nil))
+                         consult-preview-variables)))
             ((default-value 'find-file-hook)
              (seq-filter (lambda (x)
                            (memq x consult-preview-allowed-hooks))
                          (default-value 'find-file-hook))))
     (unwind-protect
         (progn
-          (pcase-dolist (`(,k . ,v) consult-preview-variables)
+          (pcase-dolist (`(,k ,v . ,_) vars)
             (set-default k v)
             (set k v))
           ;; file-attributes may throw permission denied error
@@ -1152,7 +1150,7 @@ MARKER is the cursor position."
               (message "File `%s' (%s) is too large for preview"
                        name (file-size-human-readable size))
               nil)))
-      (pcase-dolist (`(,k ,d ,v) orig)
+      (pcase-dolist (`(,k ,_ ,d ,v) vars)
         (set-default k d)
         (set k v)))))
 
@@ -4745,7 +4743,8 @@ automatically previewed."
              (setq end (1- (point)) beg (point)))))
       (setq beg (previous-single-property-change beg 'mouse-face)
             end (or (next-single-property-change end 'mouse-face) (point-max)))
-      (buffer-substring-no-properties beg end))))
+      (or (get-text-property beg 'completion--string)
+          (buffer-substring-no-properties beg end)))))
 
 ;; Announce now that consult has been loaded
 (provide 'consult)
