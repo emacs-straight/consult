@@ -78,10 +78,6 @@ The key must be either a string or a vector.
 This is the key representation accepted by `define-key'."
   :type '(choice key-sequence (const nil)))
 
-(defvar consult-project-root-function nil)
-(make-obsolete-variable 'consult-project-root-function
-                        "Deprecated in favor of `consult-project-function'." "0.15")
-
 (defcustom consult-project-function
   #'consult--default-project-function
   "Function which returns project root directory.
@@ -515,13 +511,6 @@ We use invalid characters outside the Unicode range.")
   "Overlays used by `consult-focus-lines'.")
 
 ;;;; Customization helper
-
-;; TODO remove obsolete function `consult--customize-set'.
-;; The function exists to avoid issues with precompiled configurations,
-;; which still refer to `consult--customize-set'.
-(defun consult--customize-set (cmds prop val)
-  "Set property PROP to VAL of commands CMDS."
-  (consult--customize-put cmds prop `',val))
 
 (defun consult--customize-put (cmds prop form)
   "Set property PROP to FORM of commands CMDS."
@@ -1355,95 +1344,92 @@ FACE is the cursor face."
     (if (numberp keys) keys any)))
 
 ;; TODO Remove this function after upgrades of :state functions
-(defun consult--protected-preview-call (fun action cand)
+(defun consult--protected-state-call (fun action cand)
   "Call state FUN with ACTION and CAND and protect against errors."
   (condition-case err
       (funcall fun action cand)
     (t (message "consult--read: No preview, the :state function protocol changed: %S" err))))
 
+(defun consult--append-local-post-command-hook (fun)
+  "Append FUN to local `post-command-hook' list."
+  ;; Symbol indirection because of bug#46407.
+  (let ((hook (make-symbol "consult--preview-post-command")))
+    (fset hook fun)
+    ;; TODO Emacs 28 has a bug, where the hook--depth-alist is not cleaned up properly
+    ;; Do not use the broken add-hook here.
+    ;;(add-hook 'post-command-hook sym 'append 'local)
+    (setq-local post-command-hook
+                (append
+                 (remove t post-command-hook)
+                 (list hook)
+                 (and (memq t post-command-hook) '(t))))))
+
 (defun consult--with-preview-1 (preview-key state transform candidate fun)
   "Add preview support for FUN.
 See `consult--with-preview' for the arguments
 PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
-  (let ((input "") selected timer last-preview
-        ;; symbol indirection because of bug#46407
-        (post-command-sym (make-symbol "consult--preview-post-command"))
-        (minibuffer-exit-sym (make-symbol "consult--preview-minibuffer-exit")))
+  (let ((input "") selected timer last-preview)
     (consult--minibuffer-with-setup-hook
         (if (and state preview-key)
             (lambda ()
+              (let ((exit-hook (make-symbol "consult--preview-minibuffer-exit")))
+                (fset exit-hook
+                      (lambda ()
+                        (when timer
+                          (cancel-timer timer)
+                          (setq timer nil))
+                        (with-selected-window (or (minibuffer-selected-window) (next-window))
+                          ;; STEP 3: Reset preview
+                          (when last-preview
+                            (consult--protected-state-call state 'preview nil))
+                          ;; STEP 4: Notify the preview function of the minibuffer exit
+                          (consult--protected-state-call state 'exit nil))))
+                (add-hook 'minibuffer-exit-hook exit-hook nil 'local))
               ;; STEP 1: Setup the preview function
               (with-selected-window (or (minibuffer-selected-window) (next-window))
-                (consult--protected-preview-call state 'setup nil))
+                (consult--protected-state-call state 'setup nil))
               (setq consult--preview-function
                     (lambda ()
-                      (when-let ((cand (funcall candidate))
-                                 (input (with-selected-window (active-minibuffer-window)
-                                          (minibuffer-contents-no-properties))))
-                        (with-selected-window (or (minibuffer-selected-window) (next-window))
-                          (let ((transformed (funcall transform input cand))
-                                (new-preview (cons input cand)))
-                            (when-let (debounce (consult--preview-key-debounce preview-key transformed))
-                              (when timer
-                                (cancel-timer timer)
-                                (setq timer nil))
-                              (unless (equal last-preview new-preview)
-                                (if (> debounce 0)
-                                    (let ((win (selected-window)))
-                                      (setq timer
-                                            (run-at-time
-                                             debounce
-                                             nil
-                                             (lambda ()
-                                               (when (window-live-p win)
-                                                 (with-selected-window win
-                                                   ;; STEP 2: Preview candidate
-                                                   (consult--protected-preview-call
-                                                    state 'preview transformed)
-                                                   (setq last-preview new-preview)))))))
-                                  ;; STEP 2: Preview candidate
-                                  (consult--protected-preview-call state 'preview transformed)
-                                  (setq last-preview new-preview)))))))))
-              (fset minibuffer-exit-sym
-                    (lambda ()
-                      (when timer
-                        (cancel-timer timer))
-                      (with-selected-window (or (minibuffer-selected-window) (next-window))
-                        ;; STEP 3: Reset preview
-                        (when last-preview
-                          (consult--protected-preview-call state 'preview nil))
-                        ;; STEP 4: Notify the preview function of the minibuffer exit
-                        (consult--protected-preview-call state 'exit nil))))
-              (add-hook 'minibuffer-exit-hook minibuffer-exit-sym nil 'local)
-              (fset post-command-sym
-                    (lambda ()
-                      (setq input (minibuffer-contents-no-properties))
-                      (funcall consult--preview-function)))
-              ;; TODO Emacs 28 has a bug, where the hook--depth-alist is not cleaned up properly
-              ;; Do not use the broken add-hook here.
-              ;;(add-hook 'post-command-hook post-command-sym 'append 'local)
-              (setq-local post-command-hook
-                          (append
-                           (remove t post-command-hook)
-                           (list post-command-sym)
-                           (and (memq t post-command-hook) '(t)))))
+                      (when-let ((cand (funcall candidate)))
+                        (with-selected-window (active-minibuffer-window)
+                          (let ((input (minibuffer-contents-no-properties)))
+                            (with-selected-window (or (minibuffer-selected-window) (next-window))
+                              (let ((transformed (funcall transform input cand))
+                                    (new-preview (cons input cand)))
+                                (when-let (debounce (consult--preview-key-debounce preview-key transformed))
+                                  (when timer
+                                    (cancel-timer timer)
+                                    (setq timer nil))
+                                  (unless (equal last-preview new-preview)
+                                    (if (> debounce 0)
+                                        (let ((win (selected-window)))
+                                          (setq timer
+                                                (run-at-time
+                                                 debounce nil
+                                                 (lambda ()
+                                                   (when (window-live-p win)
+                                                     (with-selected-window win
+                                                       ;; STEP 2: Preview candidate
+                                                       (consult--protected-state-call
+                                                        state 'preview transformed)
+                                                       (setq last-preview new-preview)))))))
+                                      ;; STEP 2: Preview candidate
+                                      (consult--protected-state-call state 'preview transformed)
+                                      (setq last-preview new-preview)))))))))))
+              (consult--append-local-post-command-hook
+               (lambda ()
+                 (setq input (minibuffer-contents-no-properties))
+                 (funcall consult--preview-function))))
           (lambda ()
-            (fset post-command-sym (lambda () (setq input (minibuffer-contents-no-properties))))
-            ;; TODO Emacs 28 has a bug, where the hook--depth-alist is not cleaned up properly
-            ;; Do not use the broken add-hook here.
-            ;;(add-hook 'post-command-hook post-command-sym 'append 'local)
-            (setq-local post-command-hook
-                        (append
-                         (remove t post-command-hook)
-                         (list post-command-sym)
-                         (and (memq t post-command-hook) '(t))))))
+            (consult--append-local-post-command-hook
+             (lambda () (setq input (minibuffer-contents-no-properties))))))
       (unwind-protect
           (cons (setq selected (when-let (result (funcall fun))
                                  (funcall transform input result)))
                 input)
         (when state
           ;; STEP 5: The preview function should perform its final action
-          (consult--protected-preview-call state 'return selected))))))
+          (consult--protected-state-call state 'return selected))))))
 
 (defmacro consult--with-preview (preview-key state transform candidate &rest body)
   "Add preview support to BODY.
@@ -1459,11 +1445,11 @@ selected or if the selection was aborted. The function is called in
 sequence with the following arguments:
 
   1. 'setup nil         After entering the minibuffer (minibuffer-setup-hook).
-/ 2. 'preview CAND/nil  Preview candidate CAND or reset if CAND is nil.
-|    'preview CAND/nil
-|    'preview CAND/nil
-|    ...
-\ 3. 'preview nil       Reset preview.
+⎧ 2. 'preview CAND/nil  Preview candidate CAND or reset if CAND is nil.
+⎪    'preview CAND/nil
+⎪    'preview CAND/nil
+⎪    ...
+⎩ 3. 'preview nil       Reset preview.
   4. 'exit nil          Before exiting the minibuffer (minibuffer-exit-hook).
   5. 'return CAND/nil   After leaving the minibuffer, CAND has been selected.
 
