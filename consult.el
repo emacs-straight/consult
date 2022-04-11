@@ -322,7 +322,8 @@ The dynamically computed arguments are appended."
     (?g "Gnus" ,#'gnus-summary-bookmark-jump)
     ;; Introduced on Emacs 28
     (?s "Eshell" eshell-bookmark-jump)
-    (?e "Eww" eww-bookmark-jump))
+    (?e "Eww" eww-bookmark-jump)
+    (?v "VC Directory" vc-dir-bookmark-jump))
   "Bookmark narrowing configuration.
 
 Each element of the list must have the form '(char name handler)."
@@ -1128,31 +1129,38 @@ ORIG is the original function, HOOKS the arguments."
 
 (defun consult--find-file-temporarily (name)
   "Open file NAME temporarily for preview."
-  (let ((vars (delq nil
-                    (mapcar (pcase-lambda (`(,k . ,v))
+  (setq name (abbreviate-file-name (expand-file-name name)))
+  ;; file-attributes may throw permission denied error
+  (when-let* ((attrs (ignore-errors (file-attributes name)))
+              (size (file-attribute-size attrs)))
+    (if (<= size consult-preview-max-size)
+        (let* ((vars (delq nil
+                           (mapcar
+                            (pcase-lambda (`(,k . ,v))
                               (if (boundp k)
                                   (list k v (default-value k) (symbol-value k))
                                 (message "consult-preview-variables: The variable `%s' is not bound" k)
                                 nil))
-                            consult-preview-variables))))
-    (unwind-protect
-        (progn
-          (advice-add #'run-hooks :around #'consult--filter-find-file-hook)
-          (pcase-dolist (`(,k ,v . ,_) vars)
-            (set-default k v)
-            (set k v))
-          ;; file-attributes may throw permission denied error
-          (when-let* ((attrs (ignore-errors (file-attributes name)))
-                      (size (file-attribute-size attrs)))
-            (if (<= size consult-preview-max-size)
-                (find-file-noselect name 'nowarn (> size consult-preview-raw-size))
-              (message "File `%s' (%s) is too large for preview"
-                       name (file-size-human-readable size))
-              nil)))
-      (advice-remove #'run-hooks #'consult--filter-find-file-hook)
-      (pcase-dolist (`(,k ,_ ,d ,v) vars)
-        (set-default k d)
-        (set k v)))))
+                            consult-preview-variables)))
+               (buf (unwind-protect
+                        (progn
+                          (advice-add #'run-hooks :around #'consult--filter-find-file-hook)
+                          (pcase-dolist (`(,k ,v . ,_) vars)
+                            (set-default k v)
+                            (set k v))
+                          (find-file-noselect name 'nowarn (> size consult-preview-raw-size)))
+                      (advice-remove #'run-hooks #'consult--filter-find-file-hook)
+                      (pcase-dolist (`(,k ,_ ,d ,v) vars)
+                        (set-default k d)
+                        (set k v)))))
+          (if (not (ignore-errors (buffer-local-value 'so-long-detected-p buf)))
+              buf
+            (kill-buffer buf)
+            (message "File `%s' has long lines, not previewed" name)
+            nil))
+      (message "File `%s' (%s) is too large for preview"
+               name (file-size-human-readable size))
+      nil)))
 
 (defun consult--temporary-files ()
   "Return a function to open files temporarily for preview."
@@ -1638,7 +1646,9 @@ POINT is the point position."
 BIND is the asynchronous function binding."
   (declare (indent 1))
   (let ((async (car bind)))
-    `(let ((,async ,@(cdr bind)) (orig-chunk))
+    `(let ((,async ,@(cdr bind))
+           (new-chunk (max read-process-output-max consult--process-chunk))
+           orig-chunk)
        (consult--minibuffer-with-setup-hook
            ;; Append such that we overwrite the completion style setting of
            ;; `fido-mode'. See `consult--async-split' and
@@ -1647,7 +1657,7 @@ BIND is the asynchronous function binding."
             (lambda ()
               (when (functionp ,async)
                 (setq orig-chunk read-process-output-max
-                      read-process-output-max (max read-process-output-max consult--process-chunk))
+                      read-process-output-max new-chunk)
                 (funcall ,async 'setup)
                 ;; Push input string to request refresh.
                 ;; We use a symbol in order to avoid adding lambdas to the hook variable.
@@ -1660,7 +1670,7 @@ BIND is the asynchronous function binding."
            (unwind-protect
                ,(macroexp-progn body)
              (funcall ,async 'destroy)
-             (when orig-chunk
+             (when (and orig-chunk (eq read-process-output-max new-chunk))
                (setq read-process-output-max orig-chunk))))))))
 
 (defun consult--async-sink ()
@@ -1995,9 +2005,6 @@ argument list :command and a highlighting function :highlight."
 (defvar consult-crm-map (make-sparse-keymap)
   "Keymap added by `consult-completing-read-multiple'.")
 
-(defvar consult-preview-map (make-sparse-keymap)
-  "Keymap added for commands with preview.")
-
 (defvar consult-narrow-map
   (let ((map (make-sparse-keymap)))
     (define-key map " " consult--narrow-space)
@@ -2055,7 +2062,6 @@ PREVIEW-KEY are the preview keys."
       (delq nil (list keymap
                       (and async consult-async-map)
                       (and narrow consult-narrow-map)
-                      (and preview-key consult-preview-map)
                       map))
       old-map))))
 
@@ -4469,8 +4475,7 @@ BUILDER is the command builder.
 PROMPT is the prompt string.
 INITIAL is inital input."
   (let* ((prompt-dir (consult--directory-prompt prompt dir))
-         (default-directory (cdr prompt-dir))
-         (read-process-output-max (max read-process-output-max (* 1024 1024))))
+         (default-directory (cdr prompt-dir)))
     (consult--read
      (consult--async-command builder
        (consult--grep-format builder)
