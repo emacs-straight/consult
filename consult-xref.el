@@ -54,7 +54,7 @@
   (let ((open (consult--temporary-files))
         (preview (consult--jump-preview)))
     (lambda (action cand)
-      (when (eq action 'exit)
+      (unless cand
         (funcall open))
       (let ((consult--buffer-display display))
         (funcall preview action

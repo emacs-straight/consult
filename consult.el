@@ -958,26 +958,27 @@ selection change to full Emacs markers."
       (setcar loc (set-marker (make-marker) (cdar loc) (caar loc))))
     loc))
 
-(defun consult--lookup-member (_ candidates cand)
-  "Lookup CAND in CANDIDATES list, return original element."
-  (car (member cand candidates)))
+(defun consult--lookup-member (selected candidates &rest _)
+  "Lookup SELECTED in CANDIDATES list, return original element."
+  (car (member selected candidates)))
 
-(defun consult--lookup-cons (_ candidates cand)
-  "Lookup CAND in CANDIDATES alist, return cons."
-  (assoc cand candidates))
+(defun consult--lookup-cons (selected candidates &rest _)
+  "Lookup SELECTED in CANDIDATES alist, return cons."
+  (assoc selected candidates))
 
-(defun consult--lookup-cdr (_ candidates cand)
-  "Lookup CAND in CANDIDATES alist, return cdr of element."
-  (cdr (assoc cand candidates)))
+(defun consult--lookup-cdr (selected candidates &rest _)
+  "Lookup SELECTED in CANDIDATES alist, return cdr of element."
+  (cdr (assoc selected candidates)))
 
-(defun consult--lookup-location (_ candidates cand)
-  "Lookup CAND in CANDIDATES list of 'consult-location category, return the marker."
-  (when-let (found (member cand candidates))
+(defun consult--lookup-location (selected candidates &rest _)
+  "Lookup SELECTED in CANDIDATES list of `consult-location' category.
+Return the location marker."
+  (when-let (found (member selected candidates))
     (car (consult--get-location (car found)))))
 
-(defun consult--lookup-candidate (_ candidates cand)
-  "Lookup CAND in CANDIDATES list and return property 'consult--candidate."
-  (when-let (found (member cand candidates))
+(defun consult--lookup-candidate (selected candidates &rest _)
+  "Lookup SELECTED in CANDIDATES list and return property `consult--candidate'."
+  (when-let (found (member selected candidates))
     (get-text-property 0 'consult--candidate (car found))))
 
 (defun consult--forbid-minibuffer ()
@@ -1129,7 +1130,6 @@ ORIG is the original function, HOOKS the arguments."
 
 (defun consult--find-file-temporarily (name)
   "Open file NAME temporarily for preview."
-  (setq name (abbreviate-file-name (expand-file-name name)))
   ;; file-attributes may throw permission denied error
   (when-let* ((attrs (ignore-errors (file-attributes name)))
               (size (file-attribute-size attrs)))
@@ -1173,44 +1173,60 @@ ORIG is the original function, HOOKS the arguments."
             ;; Fully initialize previewed files and keep them alive.
             (unless (consult--completion-window-p)
               (let (live-files)
-                (dolist (buf temporary-buffers)
-                  (when-let ((file (buffer-file-name buf))
-                             (wins (and (buffer-live-p buf)
-                                        (get-buffer-window-list buf))))
+                (pcase-dolist (`(,file . ,buf) temporary-buffers)
+                  (when-let (wins (and (buffer-live-p buf)
+                                       (get-buffer-window-list buf)))
                     (push (cons file (mapcar
                                       (lambda (win)
-                                        (list (window-state-get win t) win))
+                                        (cons win (window-state-get win t)))
                                       wins))
-                          live-files))
+                          live-files)))
+                (pcase-dolist (`(,_ . ,buf) temporary-buffers)
                   (kill-buffer buf))
                 (setq temporary-buffers nil)
                 (pcase-dolist (`(,file . ,wins) live-files)
                   (when-let (buf (find-file-noselect file))
                     (push buf orig-buffers)
-                    (dolist (state wins)
-                      (apply #'window-state-put state))))))))
+                    (pcase-dolist (`(,win . ,state) wins)
+                      (setf (car (alist-get 'buffer state)) buf)
+                      (window-state-put state win))))))))
     (lambda (&optional name)
       (if name
           (let ((default-directory dir))
+            (setq name (abbreviate-file-name (expand-file-name name)))
+            (or
              ;; get-file-buffer is only a small optimization here. It
              ;; may not find the actual buffer, for directories it
              ;; returns nil instead of returning the Dired buffer.
-             (or (get-file-buffer name)
-                 (when-let (buf (consult--find-file-temporarily name))
-                   ;; Only add new buffer if not already in the list
-                   (unless (or (memq buf temporary-buffers) (memq buf orig-buffers))
-                     (add-hook 'window-selection-change-functions hook)
-                     (push buf temporary-buffers)
-                     (with-current-buffer buf
-                       (setq mode-name `("Preview:" ,mode-name)
-                             buffer-read-only t))
-                     ;; Only keep a few buffers alive
-                     (while (> (length temporary-buffers) consult-preview-max-count)
-                       (kill-buffer (car (last temporary-buffers)))
-                       (setq temporary-buffers (nbutlast temporary-buffers))))
-                   buf)))
+             (get-file-buffer name)
+             (cdr (assoc name temporary-buffers))
+             (when-let (buf (consult--find-file-temporarily name))
+               ;; Only add new buffer if not already in the list
+               (unless (or (rassq buf temporary-buffers) (memq buf orig-buffers))
+                 (add-hook 'window-selection-change-functions hook)
+                 (push (cons name buf) temporary-buffers)
+                 (with-current-buffer buf
+                   ;; Disassociate buffer from file by setting
+                   ;; `buffer-file-name' to nil and rename the buffer.
+                   ;; This lets us open an already previewed buffer with
+                   ;; the Embark default action C-. RET. We cannot use
+                   ;; (set-visited-file-name nil) since then the mode
+                   ;; hooks will not run.
+                   (rename-buffer
+                    (format "Preview:%s"
+                            (file-name-nondirectory (directory-file-name name)))
+                    'unique)
+                   (setq buffer-file-name nil
+                         buffer-read-only t))
+                 ;; Only keep a few buffers alive
+                 (while (> (length temporary-buffers) consult-preview-max-count)
+                   (kill-buffer (cdar (last temporary-buffers)))
+                   (setq temporary-buffers (nbutlast temporary-buffers))))
+               buf)))
         (remove-hook 'window-selection-change-functions hook)
-        (mapc #'kill-buffer temporary-buffers)))))
+        (pcase-dolist (`(,_ . ,buf) temporary-buffers)
+          (kill-buffer buf))
+        (setq temporary-buffers nil)))))
 
 (defun consult--invisible-open-permanently ()
   "Open overlays which hide the current line.
@@ -1378,7 +1394,7 @@ FACE is the cursor face."
   "Add preview support for FUN.
 See `consult--with-preview' for the arguments
 PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
-  (let ((input "") selected timer last-preview)
+  (let ((input "") narrow selected timer last-preview)
     (consult--minibuffer-with-setup-hook
         (if (and state preview-key)
             (lambda ()
@@ -1404,7 +1420,7 @@ PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
                         (with-selected-window (active-minibuffer-window)
                           (let ((input (minibuffer-contents-no-properties)))
                             (with-selected-window (or (minibuffer-selected-window) (next-window))
-                              (let ((transformed (funcall transform input cand))
+                              (let ((transformed (funcall transform narrow input cand))
                                     (new-preview (cons input cand)))
                                 (when-let (debounce (consult--preview-key-debounce preview-key transformed))
                                   (when timer
@@ -1428,14 +1444,16 @@ PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
                                       (setq last-preview new-preview)))))))))))
               (consult--append-local-post-command-hook
                (lambda ()
-                 (setq input (minibuffer-contents-no-properties))
+                 (setq input (minibuffer-contents-no-properties)
+                       narrow consult--narrow)
                  (funcall consult--preview-function))))
           (lambda ()
             (consult--append-local-post-command-hook
-             (lambda () (setq input (minibuffer-contents-no-properties))))))
+             (lambda () (setq input (minibuffer-contents-no-properties)
+                              narrow consult--narrow)))))
       (unwind-protect
           (cons (setq selected (when-let (result (funcall fun))
-                                 (funcall transform input result)))
+                                 (funcall transform narrow input result)))
                 input)
         (when state
           ;; STEP 5: The preview function should perform its final action
@@ -2158,8 +2176,13 @@ PREVIEW-KEY are the preview keys."
              (result
               (consult--with-preview
                   preview-key state
-                  (lambda (input cand)
-                    (funcall lookup input (funcall async nil) cand))
+                  (lambda (narrow input cand)
+                    (condition-case nil
+                        (funcall lookup cand (funcall async nil) input narrow)
+                      (wrong-number-of-arguments
+                       ;; TODO Remove the condition-case after upgrades of :lookup functions
+                       (message "consult--read: The :lookup function protocol changed")
+                       (funcall lookup input (funcall async nil) cand))))
                   (apply-partially #'run-hook-with-args-until-success
                                    'consult--completion-candidate-hook)
                 (completing-read prompt
@@ -2194,7 +2217,7 @@ DEFAULT is the default selected value.
 ADD-HISTORY is a list of items to add to the history.
 CATEGORY is the completion category.
 SORT should be set to nil if the candidates are already sorted.
-LOOKUP is a lookup function passed the input, candidates and candidate string.
+LOOKUP is a lookup function passed selected, candidates, input and narrow.
 ANNOTATE is a function passed a candidate string to return an annotation.
 INITIAL is the initial input.
 STATE is the state function, see `consult--with-preview'.
@@ -2221,7 +2244,7 @@ INHERIT-INPUT-METHOD, if non-nil the minibuffer inherits the input method."
           (list :prompt "Select: "
                 :preview-key consult-preview-key
                 :sort t
-                :lookup (lambda (_input _cands x) x)))))
+                :lookup (lambda (selected &rest _) selected)))))
 
 ;;;; Internal API: consult--multi
 
@@ -2280,19 +2303,22 @@ INHERIT-INPUT-METHOD, if non-nil the minibuffer inherits the input method."
                          (consult--ensure-list key)))
                      sources))))
 
-(defun consult--multi-lookup (sources _ candidates cand)
-  "Lookup CAND in CANDIDATES given SOURCES."
-  (unless (string-blank-p cand)
-    (if (consult--tofu-p (aref cand (1- (length cand))))
-        (cons (if-let (found (member cand candidates))
-                  (cdr (get-text-property 0 'multi-category (car found)))
-                ;; Non-existing tofu'ed candidates can occur due an
-                ;; interaction of Consult preview and Embark.
-                ;; See https://github.com/oantolin/embark/issues/490.
-                (substring cand 0 -1))
-              (consult--multi-source sources cand))
-      ;; TODO return source with :new field, depending on current narrowing
-      (list cand))))
+(defun consult--multi-lookup (sources selected candidates _input narrow &rest _)
+  "Lookup SELECTED in CANDIDATES given SOURCES, with potential NARROW."
+  (unless (string-blank-p selected)
+    (if-let (found (member selected candidates))
+        (cons (cdr (get-text-property 0 'multi-category (car found)))
+              (consult--multi-source sources selected))
+      (let* ((tofu (consult--tofu-p (aref selected (1- (length selected)))))
+             (src (cond
+                   (tofu (consult--multi-source sources selected))
+                   (narrow (seq-find (lambda (src)
+                                       (let ((n (plist-get src :narrow)))
+                                         (eq (or (car-safe n) n -1) narrow)))
+                                     sources))
+                   ((seq-find (lambda (src) (plist-get src :default)) sources))
+                   ((aref sources 0)))))
+        `(,(if tofu (substring selected 0 -1) selected) :match nil ,@src)))))
 
 (defun consult--multi-candidates (sources)
   "Return `consult--multi' candidates from SOURCES."
@@ -2369,13 +2395,15 @@ INHERIT-INPUT-METHOD, if non-nil the minibuffer inherits the input method."
 OPTIONS is the plist of options passed to `consult--read'. The following
 options are supported: :require-match, :history, :keymap, :initial,
 :add-history, :sort and :inherit-input-method. The other options of
-`consult--read' are used by the implementation of `consult--multi' and should
-be overwritten only in special scenarios.
+`consult--read' are used by the implementation of `consult--multi' and
+should be overwritten only in special scenarios.
 
 The function returns the selected candidate in the form (cons candidate
-source-value). The sources of the source list can either be symbols of source
-variables or source values. Source values must be plists with the following
-fields:
+source-plist). The plist has the key :match with a value nil if the
+candidate does not exist, t if the candidate exists and `new' if the
+candidate has been created. The sources of the source list can either be
+symbols of source variables or source values. Source values must be
+plists with the following fields:
 
 Required source fields:
 * :category - Completion category.
@@ -2390,7 +2418,8 @@ Optional source fields:
 * :annotate - Annotation function called for each candidate, returns string.
 * :history - Name of history variable to add selected candidate.
 * :default - Must be t if the first item of the source is the default value.
-* :action - Action function called with the selected candidate.
+* :action - Function called with the selected candidate.
+* :new - Function called with new candidate name, only if :require-match is nil.
 * :state - State constructor for the source, must return the state function.
 * Other source fields can be added specifically to the use case."
   (let* ((sources (consult--multi-enabled-sources sources))
@@ -2415,8 +2444,13 @@ Optional source fields:
                             :state       (consult--multi-state sources))))))
     (when-let (history (plist-get (cdr selected) :history))
       (add-to-history history (car selected)))
-    (when-let (action (plist-get (cdr selected) :action))
-      (funcall action (car selected)))
+    (if (plist-member (cdr selected) :match)
+        (when-let (fun (plist-get (cdr selected) :new))
+          (funcall fun (car selected))
+          (plist-put (cdr selected) :match 'new))
+      (when-let (fun (plist-get (cdr selected) :action))
+        (funcall fun (car selected)))
+      (setq selected `(,(car selected) :match t ,@(cdr selected))))
     selected))
 
 ;;;; Internal API: consult--prompt
@@ -2431,7 +2465,7 @@ Optional source fields:
                              (apply-partially #'consult--add-history nil add-history))))
     (car (consult--with-preview
              preview-key state
-             (lambda (inp _) (funcall transform inp)) (lambda () t)
+             (lambda (_narrow inp _cand) (funcall transform inp)) (lambda () t)
            (read-from-minibuffer prompt initial nil nil history default inherit-input-method)))))
 
 (cl-defun consult--prompt (&rest options &key prompt history add-history initial default
@@ -2565,18 +2599,18 @@ These configuration options are supported:
                            (cond
                             ;; Transform absolute file names
                             ((file-name-absolute-p initial)
-                             (lambda (_inp cand)
+                             (lambda (_narrow _inp cand)
                                (substitute-in-file-name cand)))
                             ;; Ensure that ./ prefix is kept for the shell (#356)
                             ((string-match-p "\\`\\.\\.?/" initial)
-                             (lambda (_inp cand)
+                             (lambda (_narrow _inp cand)
                                (setq cand (file-relative-name (substitute-in-file-name cand)))
                                (if (string-match-p "\\`\\.\\.?/" cand) cand (concat "./" cand))))
                             ;; Simplify relative file names
                             (t
-                             (lambda (_inp cand)
+                             (lambda (_narrow _inp cand)
                                (file-relative-name (substitute-in-file-name cand)))))
-                         (lambda (_inp cand) cand))
+                         (lambda (_narrow _inp cand) cand))
                        ;; candidate function
                        (apply-partially #'run-hook-with-args-until-success
                                         'consult--completion-candidate-hook)
@@ -2977,20 +3011,20 @@ CURR-LINE is the current line number."
            (setcdr default-cand nil)
            (nconc before candidates)))))))
 
-(defun consult--line-match (input candidates cand)
+(defun consult--line-match (selected candidates input &rest _)
   "Lookup position of match.
 
-INPUT is the input string entered by the user.
-CANDIDATES is the line candidates alist.
-CAND is the currently selected candidate."
-  (when-let (pos (consult--lookup-location input candidates cand))
+SELECTED is the currently selected candidate.
+CANDIDATES is the list of candidates.
+INPUT is the input string entered by the user."
+  (when-let (pos (consult--lookup-location selected candidates))
     (if (or (string-blank-p input)
             (eq consult-line-point-placement 'line-beginning))
         pos
       (let ((beg 0)
-            (end (length cand)))
+            (end (length selected)))
         ;; Ignore tofu-encoded unique line number suffix
-        (while (and (> end 0) (consult--tofu-p (aref cand (1- end))))
+        (while (and (> end 0) (consult--tofu-p (aref selected (1- end))))
           (setq end (1- end)))
         ;; Find match end position, remove characters from line end until
         ;; matching fails
@@ -3003,7 +3037,7 @@ CAND is the currently selected candidate."
                         ;; candidate, since setting up deferred highlighting is
                         ;; costly.
                         (consult--completion-filter input
-                                                    (list (substring cand 0 (- end step)))
+                                                    (list (substring selected 0 (- end step)))
                                                     'consult-location 'highlight))
               (setq end (- end step)))
             (setq step (/ step 2))))
@@ -3015,7 +3049,7 @@ CAND is the currently selected candidate."
               (while (and (< (+ beg step) end)
                           ;; See comment above, call to `consult--completion-filter'.
                           (consult--completion-filter input
-                                                      (list (substring cand (+ beg step) end))
+                                                      (list (substring selected (+ beg step) end))
                                                       'consult-location 'highlight))
                 (setq beg (+ beg step)))
               (setq step (/ step 2)))
@@ -3392,7 +3426,7 @@ narrowing and the settings `consult-goto-line-numbers' and
   (let ((open (consult--temporary-files))
         (preview (consult--buffer-preview)))
     (lambda (action cand)
-      (when (eq action 'exit)
+      (unless cand
         (funcall open))
       (funcall preview action
                (and cand
@@ -3640,7 +3674,7 @@ There exists no equivalent of this command in Emacs 28."
   (let ((preview (consult--jump-preview))
         (open (consult--temporary-files)))
     (lambda (action cand)
-      (when (eq action 'exit)
+      (unless cand
         (funcall open))
       (funcall
        preview action
@@ -3901,8 +3935,10 @@ starts a new Isearch session otherwise."
                   cand
                 (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
             :lookup
-            (lambda (_ candidates str)
-              (if-let (found (member str candidates)) (substring (car found) 0 -1) str))
+            (lambda (selected candidates &rest _)
+              (if-let (found (member selected candidates))
+                  (substring (car found) 0 -1)
+                selected))
             :state
             (lambda (action cand)
               (when (and (eq action 'preview) cand)
@@ -4003,9 +4039,9 @@ The command supports previewing the currently selected theme."
        :require-match t
        :category 'theme
        :history 'consult--theme-history
-       :lookup (lambda (_input _cands x)
-                 (or (when-let (cand (and x (intern-soft x)))
-                       (car (memq cand avail-themes)))
+       :lookup (lambda (selected &rest _)
+                 (setq selected (and selected (intern-soft selected)))
+                 (or (and selected (car (memq selected avail-themes)))
                      saved-theme))
        :state (lambda (action theme)
                 (pcase action
@@ -4199,8 +4235,14 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     :face     consult-file
     :history  file-name-history
     :state    ,#'consult--file-state
-    :enabled  ,(lambda () (and consult-project-function
-                               recentf-mode))
+    :new
+    ,(lambda (file)
+       (consult--file-action
+        (expand-file-name file (consult--project-root))))
+    :enabled
+    ,(lambda ()
+       (and consult-project-function
+            recentf-mode))
     :items
     ,(lambda ()
       (when-let (root (consult--project-root))
@@ -4252,6 +4294,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     :face     consult-file
     :history  file-name-history
     :state    ,#'consult--file-state
+    :new      ,#'consult--file-action
     :enabled  ,(lambda () recentf-mode)
     :items
     ,(lambda ()
@@ -4272,16 +4315,15 @@ keys. In order to determine the project-specific files and buffers, the
 default to `consult-buffer-sources'. See `consult--multi' for the
 configuration of the virtual buffer sources."
   (interactive)
-  (when-let (buffer (consult--multi (or sources consult-buffer-sources)
-                                    :require-match
-                                    (confirm-nonexistent-file-or-buffer)
-                                    :prompt "Switch to: "
-                                    :history 'consult--buffer-history
-                                    :sort nil))
-    ;; When the buffer does not belong to a source,
-    ;; create a new buffer with the name.
-    (unless (cdr buffer)
-      (consult--buffer-action (car buffer)))))
+  (let ((selected (consult--multi (or sources consult-buffer-sources)
+                                  :require-match
+                                  (confirm-nonexistent-file-or-buffer)
+                                  :prompt "Switch to: "
+                                  :history 'consult--buffer-history
+                                  :sort nil)))
+    ;; For non-matching candidates, fall back to buffer creation.
+    (unless (plist-get (cdr selected) :match)
+      (consult--buffer-action (car selected)))))
 
 ;; Populate `consult-project-buffer-sources'.
 (setq consult-project-buffer-sources
@@ -4458,10 +4500,11 @@ FIND-FILE is the file open function, defaulting to `find-file'."
   (let ((open (consult--temporary-files))
         (jump (consult--jump-state)))
     (lambda (action cand)
-      (when (eq action 'exit)
-        (funcall open)
-        (setq open nil))
-      (funcall jump action (consult--grep-position cand open)))))
+      (unless cand
+        (funcall open))
+      (funcall jump action (consult--grep-position
+                            cand
+                            (and (not (eq action 'exit)) open))))))
 
 (defun consult--grep-group (cand transform)
   "Return title for CAND or TRANSFORM the candidate."
