@@ -147,8 +147,11 @@ nil shows all `custom-available-themes'."
 (defcustom consult-after-jump-hook '(recenter)
   "Function called after jumping to a location.
 
-Commonly used functions for this hook are `recenter' and `reposition-window'.
-This is called during preview and for the jump after selection."
+Commonly used functions for this hook are `recenter' and
+`reposition-window'. You may want to add a function which pulses the
+current line, e.g., `pulse-momentary-highlight-one-line' is supported on
+Emacs 28 and newer. The hook called during preview and for the jump
+after selection."
   :type 'hook)
 
 (defcustom consult-line-start-from-top nil
@@ -261,7 +264,7 @@ The dynamically computed arguments are appended."
   :type 'string)
 
 (defcustom consult-locate-args
-  "locate --ignore-case --existing --regex"
+  "locate --ignore-case --existing"
   "Command line arguments for locate, see `consult-locate'.
 The dynamically computed arguments are appended."
   :type 'string)
@@ -1205,19 +1208,27 @@ ORIG is the original function, HOOKS the arguments."
                (unless (or (rassq buf temporary-buffers) (memq buf orig-buffers))
                  (add-hook 'window-selection-change-functions hook)
                  (push (cons name buf) temporary-buffers)
+                 ;; Disassociate buffer from file by setting
+                 ;; `buffer-file-name' to nil and rename the buffer.
+                 ;; This lets us open an already previewed buffer with
+                 ;; the Embark default action C-. RET.
                  (with-current-buffer buf
-                   ;; Disassociate buffer from file by setting
-                   ;; `buffer-file-name' to nil and rename the buffer.
-                   ;; This lets us open an already previewed buffer with
-                   ;; the Embark default action C-. RET. We cannot use
-                   ;; (set-visited-file-name nil) since then the mode
-                   ;; hooks will not run.
                    (rename-buffer
                     (format "Preview:%s"
                             (file-name-nondirectory (directory-file-name name)))
-                    'unique)
-                   (setq buffer-file-name nil
-                         buffer-read-only t))
+                    'unique))
+                 ;; The buffer disassociation is delayed to avoid breaking
+                 ;; modes like pdf-view-mode or doc-view-mode which rely on
+                 ;; buffer-file-name. Executing (set-visited-file-name nil)
+                 ;; early also prevents the major mode initialization.
+                 (let ((hook (make-symbol "consult--temporary-files-disassociate")))
+                   (fset hook (lambda ()
+                                (when (buffer-live-p buf)
+                                  (with-current-buffer buf
+                                    (remove-hook 'pre-command-hook hook)
+                                    (setq buffer-read-only t
+                                          buffer-file-name nil)))))
+                   (add-hook 'pre-command-hook hook))
                  ;; Only keep a few buffers alive
                  (while (> (length temporary-buffers) consult-preview-max-count)
                    (kill-buffer (cdar (last temporary-buffers)))
@@ -4566,7 +4577,9 @@ INITIAL is inital input."
 
 ;;;###autoload
 (defun consult-grep (&optional dir initial)
-  "Search for regexp with grep in DIR with INITIAL input.
+  "Search with `grep' for files in DIR where the content matches a regexp.
+
+The initial input is given by the INITIAL argument.
 
 The input string is split, the first part of the string (grep input) is
 passed to the asynchronous grep process and the second part of the string is
@@ -4620,9 +4633,9 @@ Otherwise the `default-directory' is searched."
 
 ;;;###autoload
 (defun consult-git-grep (&optional dir initial)
-  "Search for regexp with grep in DIR with INITIAL input.
-
-See `consult-grep' for more details."
+  "Search with `git grep' for files in DIR where the content matches a regexp.
+The initial input is given by the INITIAL argument. See `consult-grep'
+for more details."
   (interactive "P")
   (consult--grep "Git-grep" #'consult--git-grep-builder dir initial))
 
@@ -4656,16 +4669,16 @@ See `consult-grep' for more details."
 
 ;;;###autoload
 (defun consult-ripgrep (&optional dir initial)
-  "Search for regexp with rg in DIR with INITIAL input.
-
-See `consult-grep' for more details."
+  "Search with `rg' for files in DIR where the content matches a regexp.
+The initial input is given by the INITIAL argument. See `consult-grep'
+for more details."
   (interactive "P")
   (consult--grep "Ripgrep" #'consult--ripgrep-builder dir initial))
 
 ;;;;; Command: consult-find
 
 (defun consult--find (prompt builder initial)
-  "Run find in current directory.
+  "Run find command in current directory.
 
 The function returns the selected file.
 The filename at point is added to the future history.
@@ -4719,7 +4732,7 @@ INITIAL is inital input."
 
 ;;;###autoload
 (defun consult-find (&optional dir initial)
-  "Search for regexp with find in DIR with INITIAL input.
+  "Search for files in DIR matching input regexp given INITIAL input.
 
 The find process is started asynchronously, similar to `consult-grep'.
 See `consult-grep' for more details regarding the asynchronous search."
@@ -4731,22 +4744,22 @@ See `consult-grep' for more details regarding the asynchronous search."
 ;;;;; Command: consult-locate
 
 (defun consult--locate-builder (input)
-  "Build command line given INPUT."
-  (pcase-let* ((cmd (split-string-and-unquote consult-locate-args))
-               (`(,arg . ,opts) (consult--command-split input))
-               (`(,re . ,hl) (funcall consult--regexp-compiler arg 'basic
-                                      (member "--ignore-case" cmd))))
-    (when re
-      (list :command
-            (append cmd (list (consult--join-regexps re 'basic)) opts)
-            :highlight hl))))
+  "Build command line given CONFIG and INPUT."
+  (pcase-let ((`(,arg . ,opts) (consult--command-split input)))
+    (unless (string-blank-p arg)
+      (list :command (append (split-string-and-unquote consult-locate-args)
+                             (list arg) opts)
+            :highlight (cdr (consult--default-regexp-compiler input 'basic t))))))
 
 ;;;###autoload
 (defun consult-locate (&optional initial)
-  "Search for regexp with locate with INITIAL input.
+  "Search with `locate' for files which match input given INITIAL input.
 
-The locate process is started asynchronously, similar to `consult-grep'.
-See `consult-grep' for more details regarding the asynchronous search."
+The input is treated literally such that locate can take advantage of
+the locate database index. Regular expressions would often force a slow
+linear search through the entire database. The locate process is started
+asynchronously, similar to `consult-grep'. See `consult-grep' for more
+details regarding the asynchronous search."
   (interactive)
   (find-file (consult--find "Locate: " #'consult--locate-builder initial)))
 
@@ -4779,10 +4792,12 @@ See `consult-grep' for more details regarding the asynchronous search."
 
 ;;;###autoload
 (defun consult-man (&optional initial)
-  "Search for regexp with man with INITIAL input.
+  "Search for man page given INITIAL input.
 
-The man process is started asynchronously, similar to `consult-grep'.
-See `consult-grep' for more details regarding the asynchronous search."
+The input string is not preprocessed and passed literally to the
+underlying man commands. The man process is started asynchronously,
+similar to `consult-grep'. See `consult-grep' for more details regarding
+the asynchronous search."
   (interactive)
   (man (consult--read
         (consult--async-command #'consult--man-builder
