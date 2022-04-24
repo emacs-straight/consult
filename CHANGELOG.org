@@ -4,6 +4,10 @@
 
 * Development
 
+- Removed obsolete =consult-recent-file-filter= and =consult-preview-excluded-hooks=
+
+* Version 0.17 (2022-04-22)
+
 - Bugfixes
 - Drop Emacs 26 support.
 - =consult-goto-line=: Use =goto-line-history= on Emacs 28.
