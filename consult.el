@@ -1263,26 +1263,28 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
 
 (defun consult--jump-1 (pos)
   "Go to POS and recenter."
-  (cond
-   ((and (markerp pos) (not (marker-buffer pos)))
-    ;; Only print a message, no error in order to not mess
-    ;; with the minibuffer update hook.
-    (message "Buffer is dead"))
-   (t
+  (if (and (markerp pos) (not (marker-buffer pos)))
+      ;; Only print a message, no error in order to not mess
+      ;; with the minibuffer update hook.
+      (message "Buffer is dead")
     ;; Switch to buffer if it is not visible
     (when (and (markerp pos) (not (eq (current-buffer) (marker-buffer pos))))
       (consult--buffer-action (marker-buffer pos) 'norecord))
     ;; Widen if we cannot jump to the position (idea from flycheck-jump-to-error)
     (unless (= (goto-char pos) (point))
       (widen)
-      (goto-char pos)))))
+      (goto-char pos))))
 
 (defun consult--jump (pos)
   "Push current position to mark ring, go to POS and recenter."
   (when pos
-    ;; When the marker is in the same buffer,
-    ;; record previous location such that the user can jump back quickly.
-    (unless (and (markerp pos) (not (eq (current-buffer) (marker-buffer pos))))
+    ;; When the marker is in the same buffer, record previous location
+    ;; such that the user can jump back quickly.
+    (when (or (not (markerp pos)) (eq (current-buffer) (marker-buffer pos)))
+      ;; push-mark mutates markers in the mark-ring and the mark-marker.
+      ;; Therefore we transform the marker to a number to be safe.
+      ;; We all love side effects!
+      (setq pos (+ pos 0))
       (push-mark (point) t))
     (consult--jump-1 pos)
     (consult--invisible-open-permanently)
