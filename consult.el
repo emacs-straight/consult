@@ -236,8 +236,7 @@ See `consult--multi' for a description of the source data structure."
   "Regexp used to match file and line of grep output.")
 
 (defcustom consult-grep-args
-  "grep --null --line-buffered --color=never --ignore-case\
-   --exclude-dir=.git --line-number -I -r ."
+  "grep --null --line-buffered --color=never --ignore-case --line-number -I -r ."
   "Command line arguments for grep, see `consult-grep'.
 The dynamically computed arguments are appended."
   :type 'string)
@@ -4389,15 +4388,15 @@ INITIAL is inital input."
                  (car cmd) nil nil nil `(,@(cdr cmd) "^(?=.*b)(?=.*a)")))))
 
 (defvar consult--grep-regexp-type nil)
-(defun consult--grep-regexp-type (cmd)
-  "Return regexp type supported by grep CMD."
-  (or consult--grep-regexp-type
-      (setq consult--grep-regexp-type
-            (if (consult--grep-lookahead-p cmd "-P") 'pcre 'extended))))
 
 (defun consult--grep-builder (input)
   "Build command line given INPUT."
-  (pcase-let* ((cmd (split-string-and-unquote consult-grep-args))
+  (unless (boundp 'grep-find-ignored-files) (require 'grep))
+  (pcase-let* ((cmd (append (split-string-and-unquote consult-grep-args)
+                            (mapcar (lambda (s) (concat "--exclude=" s))
+                                    (bound-and-true-p grep-find-ignored-files))
+                            (mapcar (lambda (s) (concat "--exclude-dir=" s))
+                                    (bound-and-true-p grep-find-ignored-directories))))
                (`(,arg . ,opts) (consult--command-split input))
                (flags (append cmd opts))
                (ignore-case (or (member "-i" flags) (member "--ignore-case" flags))))
@@ -4405,12 +4404,14 @@ INITIAL is inital input."
         `(:command (,@cmd "-e" ,arg ,@opts) :highlight
                    ,(apply-partially #'consult--highlight-regexps
                                      (list (regexp-quote arg)) ignore-case))
-      (pcase-let* ((type (consult--grep-regexp-type (car cmd)))
+      (pcase-let* ((type (or consult--grep-regexp-type
+                             (setq consult--grep-regexp-type
+                                   (if (consult--grep-lookahead-p (car cmd) "-P") 'pcre 'extended))))
                    (`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
         (when re
           `(:command
             (,@cmd
-             ,(if (eq type 'pcre) "--perl-regexp" "--extended-regexp")
+             ,(if (eq type 'pcre) "-P" "-E") ;; perl or extended
              "-e" ,(consult--join-regexps re type)
              ,@opts)
             :highlight ,hl))))))
@@ -4485,11 +4486,6 @@ for more details."
 ;;;;; Command: consult-ripgrep
 
 (defvar consult--ripgrep-regexp-type nil)
-(defun consult--ripgrep-regexp-type (cmd)
-  "Return regexp type supported by ripgrep CMD."
-  (or consult--ripgrep-regexp-type
-      (setq consult--ripgrep-regexp-type
-            (if (consult--grep-lookahead-p cmd "-P") 'pcre 'extended))))
 
 (defun consult--ripgrep-builder (input)
   "Build command line given INPUT."
@@ -4505,7 +4501,9 @@ for more details."
         `(:command (,@cmd "-e" ,arg ,@opts) :highlight
                    ,(apply-partially #'consult--highlight-regexps
                                      (list (regexp-quote arg)) ignore-case))
-      (pcase-let* ((type (consult--ripgrep-regexp-type (car cmd)))
+      (pcase-let* ((type (or consult--ripgrep-regexp-type
+                             (setq consult--ripgrep-regexp-type
+                                   (if (consult--grep-lookahead-p (car cmd) "-P") 'pcre 'extended))))
                    (`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
         (when re
           `(:command
@@ -4547,18 +4545,15 @@ INITIAL is inital input."
    :history '(:input consult--find-history)))
 
 (defvar consult--find-regexp-type nil)
-(defun consult--find-regexp-type (cmd)
-  "Return regexp type supported by find CMD."
-  (or consult--find-regexp-type
-      (setq consult--find-regexp-type
-            (if (eq 0 (call-process-shell-command
-                       (concat cmd " -regextype emacs -version")))
-                'emacs 'basic))))
 
 (defun consult--find-builder (input)
   "Build command line given INPUT."
   (pcase-let* ((cmd (split-string-and-unquote consult-find-args))
-               (type (consult--find-regexp-type (car cmd)))
+               (type (or consult--find-regexp-type
+                         (setq consult--find-regexp-type
+                               (if (eq 0 (call-process-shell-command
+                                          (concat (car cmd) " -regextype emacs -version")))
+                                   'emacs 'basic))))
                (`(,arg . ,opts) (consult--command-split input))
                ;; ignore-case=t since -iregex is used below
                (`(,re . ,hl) (funcall consult--regexp-compiler arg type t)))
