@@ -917,12 +917,11 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
   (or (eq (selected-window) (active-minibuffer-window))
       (eq #'completion-list-mode (buffer-local-value 'major-mode (window-buffer)))))
 
-(defun consult--location-state (candidates)
-  "Location state function.
-The cheap location markers from CANDIDATES are upgraded on window
-selection change to full Emacs markers."
-  (let ((jump (consult--jump-state))
-        (hook (make-symbol "consult--location-upgrade")))
+(defun consult--location-upgrading-state (candidates state)
+  "Location state function transformer.
+Transform the STATE function. The cheap location markers from CANDIDATES are
+upgraded on window selection change to full Emacs markers."
+  (let ((hook (make-symbol "consult--location-upgrade")))
     (fset hook
           (lambda (_)
             (unless (consult--completion-window-p)
@@ -932,7 +931,13 @@ selection change to full Emacs markers."
       (pcase action
         ('setup (add-hook 'window-selection-change-functions hook))
         ('exit (remove-hook 'window-selection-change-functions hook)))
-      (funcall jump action cand))))
+      (funcall state action cand))))
+
+(defun consult--location-state (candidates)
+  "Location state function.
+The cheap location markers from CANDIDATES are upgraded on window
+selection change to full Emacs markers."
+  (consult--location-upgrading-state candidates (consult--jump-state)))
 
 (defun consult--get-location (cand)
   "Return location from CAND."
@@ -1347,20 +1352,22 @@ FACE is the cursor face."
   "The state function used if selecting from a list of candidate positions.
 The function can be used as the `:state' argument of `consult--read'.
 FACE is the cursor face."
-  (let ((preview (consult--jump-preview face)))
-    (lambda (action cand)
-      (funcall preview action cand)
-      (when (and cand (eq action 'return))
-        (consult--jump cand)))))
+  (consult--state-with-return (consult--jump-preview face) #'consult--jump))
+
+(defun consult--state-with-return (state return)
+  "Compose STATE function with RETURN function."
+  (lambda (action cand)
+    (funcall state action cand)
+    (when (and cand (eq action 'return))
+      (funcall return cand))))
 
 (defmacro consult--define-state (type)
   "Define state function for TYPE."
   `(defun ,(intern (format "consult--%s-state" type)) ()
-     (let ((preview (,(intern (format "consult--%s-preview" type)))))
-       (lambda (action cand)
-         (funcall preview action cand)
-         (when (and cand (eq action 'return))
-           (,(intern (format "consult--%s-action" type)) cand))))))
+     ,(format "State function for %ss with preview.
+The result can be passed as :state argument to `consult--read'." type)
+     (consult--state-with-return (,(intern (format "consult--%s-preview" type)))
+                                 #',(intern (format "consult--%s-action" type)))))
 
 (defun consult--preview-key-normalize (preview-key)
   "Normalize PREVIEW-KEY, return alist of keys and debounce times."
