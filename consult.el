@@ -161,8 +161,13 @@ after selection."
 Otherwise start the search at the current line and wrap around."
   :type 'boolean)
 
-(defcustom consult-line-point-placement 'match-beginning
-  "Where to leave point after `consult-line' jumps to a match."
+(define-obsolete-variable-alias
+  'consult-line-point-placement
+  'consult-point-placement "0.19")
+
+(defcustom consult-point-placement 'match-beginning
+  "Where to leave point when jumping to a match.
+This setting affects the command `consult-line' and the `consult-grep' variants."
   :type '(choice (const :tag "Beginning of the line" line-beginning)
                  (const :tag "Beginning of the match" match-beginning)
                  (const :tag "End of the match" match-end)))
@@ -568,6 +573,34 @@ Turn ARG into a list, and for each element either:
                     (setq str (substring str 0 (match-beginning 0)))))))
       ;; split-string-and-unquote fails if the quotes are invalid. Ignore it.
       (cons str (and opts (ignore-errors (split-string-and-unquote opts)))))))
+
+(defun consult--find-highlights (str start)
+  "Find highlighted regions (face property non-nil) in STR from position START."
+  (let (highlights
+        (end (length str))
+        (beg start))
+    (while (< beg end)
+      (let ((next (next-single-property-change beg 'face str end))
+            (val (get-text-property beg 'face str)))
+        (when (and val
+                   (not (eq val 'completions-first-difference))
+                   (not (and (listp val) (memq 'completions-first-difference val))))
+          (push (cons (- beg start) (- next start)) highlights))
+        (setq beg next)))
+    (nreverse highlights)))
+
+(defun consult--point-placement (str start)
+  "Compute point placement from STR with START offset.
+Return cons of point position and a list of match begin/end pairs."
+  (let* ((matches (consult--find-highlights str start))
+         (pos (pcase-exhaustive consult-point-placement
+                ('match-beginning (or (caar matches) 0))
+                ('match-end (or (cdar (last matches)) 0))
+                ('line-beginning 0))))
+    (dolist (match matches)
+      (cl-decf (car match) pos)
+      (cl-decf (cdr match) pos))
+    (cons pos matches)))
 
 (defun consult--highlight-regexps (regexps ignore-case str)
   "Highlight REGEXPS in STR.
@@ -2911,52 +2944,25 @@ INPUT is the input string entered by the user."
   (when-let (pos (consult--lookup-location selected candidates))
     (if (string-blank-p input)
         pos
-      (let ((beg 0) (end (length selected)) (step 16))
-        ;; Ignore tofu-encoded unique line number suffix
-        (while (and (> end 0) (consult--tofu-p (aref selected (1- end))))
-          (setq end (1- end)))
-        ;; Find match end position, remove characters from line end until
-        ;; matching fails
-        (while (> step 0)
-          (while (and (> (- end step) 0)
-                      ;; Use consult-location completion category when
-                      ;; filtering lines. Highlighting is not necessary here,
-                      ;; but it is actually cheaper to highlight a single
-                      ;; candidate, since setting up deferred highlighting is
-                      ;; costly.
-                      (consult--completion-filter input
-                                                  (list (substring selected 0 (- end step)))
-                                                  'consult-location 'highlight))
-            (setq end (- end step)))
-          (setq step (/ step 2)))
-        ;; Find match beginning position, remove characters from line beginning
-        ;; until matching fails
-        (setq step 16)
-        (while (> step 0)
-          (while (and (< (+ beg step) end)
-                      ;; See comment above, call to `consult--completion-filter'.
-                      (consult--completion-filter input
-                                                  (list (substring selected (+ beg step) end))
-                                                  'consult-location 'highlight))
-            (setq beg (+ beg step)))
-          (setq step (/ step 2)))
+      (let* ((highlighted (consult--completion-filter
+                           input
+                           (list (substring-no-properties selected))
+                           'consult-location 'highlight))
+             (matches (and highlighted
+                           (consult--point-placement (car highlighted) 0))))
         ;; Marker can be dead, therefore ignore errors. Create a new marker
         ;; instead of an integer, since the location may be in another buffer,
         ;; e.g., for `consult-line-multi'.
         (ignore-errors
-          (setq beg (+ pos beg) end (+ pos end))
-          (let ((dest (pcase-exhaustive consult-line-point-placement
-                        ('match-beginning beg)
-                        ('match-end end)
-                        ('line-beginning pos))))
+          (let ((dest (+ pos (car matches))))
             ;; Only create a new marker when jumping across buffers, to avoid
             ;; creating unnecessary markers, when scrolling through candidates.
             ;; Creating markers is not free.
-            (when (and (not (markerp dest)) (markerp pos)
+            (when (and (markerp pos)
                        (not (eq (marker-buffer pos)
                                 (window-buffer (or (minibuffer-selected-window) (next-window))))))
               (setq dest (move-marker (make-marker) dest (marker-buffer pos))))
-            (list dest (cons (- beg dest) (- end dest)))))))))
+            (cons dest (cdr matches))))))))
 
 (cl-defun consult--line (candidates &key curr-line prompt initial group)
   "Select from from line CANDIDATES and jump to the match.
@@ -2985,9 +2991,9 @@ INITIAL and GROUP."
 (defun consult-line (&optional initial start)
   "Search for a matching line.
 
-Depending on the setting `consult-line-point-placement' the command jumps to
-the beginning or the end of the first match on the line or the line beginning.
-The default candidate is the non-empty line next to point. This command obeys
+Depending on the setting `consult-point-placement' the command jumps to the
+beginning or the end of the first match on the line or the line beginning. The
+default candidate is the non-empty line next to point. This command obeys
 narrowing. Optional INITIAL input can be provided. The search starting point is
 changed if the START prefix argument is set. The symbol at point and the last
 `isearch-string' is added to the future history."
@@ -4393,20 +4399,14 @@ BUILDER is the command argument builder."
 FIND-FILE is the file open function, defaulting to `find-file'."
   (when cand
     (let* ((file-end (next-single-property-change 0 'face cand))
-           (line-end (next-single-property-change (+ 1 file-end) 'face cand))
-           (first-match (next-single-property-change (+ 1 line-end) 'face cand))
-           (match-beg first-match)
-           (col (if match-beg (- match-beg line-end 1) 0))
+           (line-end (next-single-property-change (1+ file-end) 'face cand))
+           (matches (consult--point-placement cand (1+ line-end)))
            (file (substring-no-properties cand 0 file-end))
-           (line (string-to-number (substring-no-properties cand (+ 1 file-end) line-end)))
-           matches)
-      (while (when-let (match-end (and match-beg (next-single-property-change match-beg 'face cand)))
-               (push (cons (- match-beg first-match) (- match-end first-match)) matches)
-               (setq match-beg (next-single-property-change match-end 'face cand))))
-      (cons (consult--position-marker
-             (funcall (or find-file #'find-file) file)
-             line col)
-            matches))))
+           (line (string-to-number (substring-no-properties cand (+ 1 file-end) line-end))))
+      (cons
+       (consult--position-marker (funcall (or find-file #'find-file) file)
+                                 line (or (car matches) 0))
+       (cdr matches)))))
 
 (defun consult--grep-state ()
   "Grep state function."
