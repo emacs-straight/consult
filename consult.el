@@ -172,10 +172,6 @@ after selection."
 Otherwise start the search at the current line and wrap around."
   :type 'boolean)
 
-(define-obsolete-variable-alias
-  'consult-line-point-placement
-  'consult-point-placement "0.19")
-
 (defcustom consult-point-placement 'match-beginning
   "Where to leave point when jumping to a match.
 This setting affects the command `consult-line' and the `consult-grep' variants."
@@ -221,6 +217,7 @@ character, the *Completions* buffer and a few log buffers."
     consult--source-modified-buffer
     consult--source-buffer
     consult--source-recent-file
+    consult--source-file-register
     consult--source-bookmark
     consult--source-project-buffer
     consult--source-project-recent-file)
@@ -1374,8 +1371,9 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
       ;; with the minibuffer update hook.
       (message "Buffer is dead")
     ;; Switch to buffer if it is not visible
-    (when (and (markerp pos) (not (eq (current-buffer) (marker-buffer pos))))
-      (consult--buffer-action (marker-buffer pos) 'norecord))
+    (when-let (buf (and (markerp pos) (marker-buffer pos)))
+      (unless (and (eq (current-buffer) buf) (eq (window-buffer) buf))
+        (consult--buffer-action buf 'norecord)))
     ;; Widen if we cannot jump to the position (idea from flycheck-jump-to-error)
     (unless (= (goto-char pos) (point))
       (widen)
@@ -1420,30 +1418,30 @@ The function can be used as the `:state' argument of `consult--read'."
                 (set-buffer saved-buffer)
                 (narrow-to-region saved-min saved-max)
                 (goto-char saved-pos)))
-            ;; Handle positions with overlay information
-            (consult--jump-1 (or (car-safe cand) cand))
-            (setq invisible (consult--invisible-open-temporarily)
-                  overlays
-                  (list (save-excursion
-                          (let ((vbeg (progn (beginning-of-visual-line) (point)))
-                                (vend (progn (end-of-visual-line) (point)))
-                                (end (line-end-position)))
-                            (consult--overlay vbeg (if (= vend end) (1+ end) vend)
-                                              'face 'consult-preview-line
-                                              'window (selected-window)
-                                              'priority 1)))
-                        (consult--overlay (point) (1+ (point))
-                                          'face 'consult-preview-cursor
-                                          'window (selected-window)
-                                          'priority 3)))
-            (dolist (match (cdr-safe cand))
-              (push (consult--overlay (+ (point) (car match))
-                                      (+ (point) (cdr match))
-                                      'face 'consult-preview-match
-                                      'window (selected-window)
-                                      'priority 2)
-                    overlays))
-            (run-hooks 'consult-after-jump-hook))))))
+          ;; Handle positions with overlay information
+          (consult--jump-1 (or (car-safe cand) cand))
+          (setq invisible (consult--invisible-open-temporarily)
+                overlays
+                (list (save-excursion
+                        (let ((vbeg (progn (beginning-of-visual-line) (point)))
+                              (vend (progn (end-of-visual-line) (point)))
+                              (end (line-end-position)))
+                          (consult--overlay vbeg (if (= vend end) (1+ end) vend)
+                                            'face 'consult-preview-line
+                                            'window (selected-window)
+                                            'priority 1)))
+                      (consult--overlay (point) (1+ (point))
+                                        'face 'consult-preview-cursor
+                                        'window (selected-window)
+                                        'priority 3)))
+          (dolist (match (cdr-safe cand))
+            (push (consult--overlay (+ (point) (car match))
+                                    (+ (point) (cdr match))
+                                    'face 'consult-preview-match
+                                    'window (selected-window)
+                                    'priority 2)
+                  overlays))
+          (run-hooks 'consult-after-jump-hook))))))
 
 (defun consult--jump-state ()
   "The state function used if selecting from a list of candidate positions."
@@ -2649,15 +2647,15 @@ of functions and in `consult-completion-in-region'."
           (delete-overlay ov)
           (setq ov nil))
          ((and (eq action 'preview) cand)
-           (unless ov
-             (setq ov (consult--overlay start end
-                                        'invisible t
-                                        'window (selected-window))))
-           ;; Use `add-face-text-property' on a copy of "cand in order to merge face properties
-           (setq cand (copy-sequence cand))
-           (add-face-text-property 0 (length cand) 'consult-preview-insertion t cand)
-           ;; Use the `before-string' property since the overlay might be empty.
-           (overlay-put ov 'before-string cand)))))))
+          (unless ov
+            (setq ov (consult--overlay start end
+                                       'invisible t
+                                       'window (selected-window))))
+          ;; Use `add-face-text-property' on a copy of "cand in order to merge face properties
+          (setq cand (copy-sequence cand))
+          (add-face-text-property 0 (length cand) 'consult-preview-insertion t cand)
+          ;; Use the `before-string' property since the overlay might be empty.
+          (overlay-put ov 'before-string cand)))))))
 
 ;;;###autoload
 (defun consult-completion-in-region (start end collection &optional predicate)
@@ -3194,12 +3192,12 @@ INITIAL is the initial input."
             (minibuffer-message
              (substitute-command-keys
               " [Unlocked read-only buffer. \\[minibuffer-keyboard-quit] to quit.]"))))
-        (consult--with-increased-gc
-         (consult--prompt
-          :prompt "Keep lines: "
-          :initial initial
-          :history 'consult--keep-lines-history
-          :state (consult--keep-lines-state filter))))))
+      (consult--with-increased-gc
+       (consult--prompt
+        :prompt "Keep lines: "
+        :initial initial
+        :history 'consult--keep-lines-history
+        :state (consult--keep-lines-state filter))))))
 
 ;;;;; Command: consult-focus-lines
 
@@ -4042,8 +4040,8 @@ The command supports previewing the currently selected theme."
   "Normalize directory DIR.
 DIR can be project, nil or a path."
   (cond
-    ((eq dir 'project) (consult--project-root))
-    (dir (expand-file-name dir))))
+   ((eq dir 'project) (consult--project-root))
+   (dir (expand-file-name dir))))
 
 (defun consult--buffer-query-prompt (prompt query)
   "Buffer query function returning a scope description.
@@ -4120,7 +4118,7 @@ Report progress and return a list of the results"
                               (prog1 (apply app)
                                 (progress-reporter-update
                                  reporter (1+ idx) (buffer-name)))))
-                 buffer)
+                          buffer)
        (progress-reporter-done reporter)))))
 
 (defun consult--buffer-file-hash ()
@@ -4256,6 +4254,20 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
                                        :as #'buffer-name)))
   "Buffer candidate source for `consult-buffer'.")
 
+(defun consult--file-register-p (reg)
+  "Return non-nil if REG is a file register."
+  (memq (car-safe (cdr reg)) '(file-query file)))
+
+(autoload 'consult-register--candidates "consult-register")
+(defvar consult--source-file-register
+  `(:name     "File Register"
+    :narrow   (?r . "Register")
+    :category file
+    :state    ,#'consult--file-state
+    :enabled  ,(lambda () (seq-some #'consult--file-register-p register-alist))
+    :items    ,(lambda () (consult-register--candidates #'consult--file-register-p)))
+  "File register source.")
+
 (defvar consult--source-recent-file
   `(:name     "File"
     :narrow   ?f
@@ -4325,7 +4337,7 @@ The command may prompt you for a project directory if it is invoked from
 outside a project. See `consult-buffer' for more details."
   (interactive)
   (consult--with-project
-    (consult-buffer consult-project-buffer-sources)))
+   (consult-buffer consult-project-buffer-sources)))
 
 ;;;###autoload
 (defun consult-buffer-other-window ()
@@ -4346,10 +4358,10 @@ outside a project. See `consult-buffer' for more details."
 (defun consult--kmacro-candidates ()
   "Return alist of kmacros and indices."
   (thread-last
-      ;; List of macros
-      (append (when last-kbd-macro
-                `((,last-kbd-macro ,kmacro-counter ,kmacro-counter-format)))
-              kmacro-ring)
+    ;; List of macros
+    (append (when last-kbd-macro
+              `((,last-kbd-macro ,kmacro-counter ,kmacro-counter-format)))
+            kmacro-ring)
     ;; Add indices
     (seq-map-indexed #'cons)
     ;; Filter mouse clicks
