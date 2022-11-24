@@ -350,6 +350,13 @@ Can be either a string, or a list of strings or expressions."
 Each element of the list must have the form \\='(char name handler)."
   :type '(repeat (list character string function)))
 
+(defcustom consult-yank-rotate
+  (if (boundp 'yank-from-kill-ring-rotate)
+      yank-from-kill-ring-rotate
+    t)
+  "Rotate the `kill-ring' in the `consult-yank' commands."
+  :type 'boolean)
+
 ;;;; Faces
 
 (defgroup consult-faces nil
@@ -3541,7 +3548,11 @@ If no MODES are specified, use currently active major and minor modes."
   (consult--lookup-member
    (consult--read
     (consult--remove-dups
-     (or kill-ring (user-error "Kill ring is empty")))
+     (or (if consult-yank-rotate
+             (append kill-ring-yank-pointer
+                     (butlast kill-ring (length kill-ring-yank-pointer)))
+           kill-ring)
+         (user-error "Kill ring is empty")))
     :prompt "Yank from kill-ring: "
     :history t ;; disable history
     :sort nil
@@ -3569,6 +3580,10 @@ version supports preview of the selected string."
     (push-mark)
     (insert-for-yank string)
     (setq this-command 'yank)
+    (when consult-yank-rotate
+      (if-let (pos (seq-position kill-ring string))
+          (setq kill-ring-yank-pointer (nthcdr pos kill-ring))
+        (kill-new string)))
     (when (consp arg)
       ;; Swap point and mark like in `yank'.
       (goto-char (prog1 (mark t)
