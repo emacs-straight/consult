@@ -456,7 +456,6 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
 (defvar consult--find-history nil)
 (defvar consult--man-history nil)
 (defvar consult--line-history nil)
-(defvar consult--apropos-history nil)
 (defvar consult--theme-history nil)
 (defvar consult--minor-mode-menu-history nil)
 (defvar consult--kmacro-history nil)
@@ -1363,38 +1362,36 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
         (when (invisible-p (overlay-get ov 'invisible))
           (funcall fun ov))))))
 
-(defun consult--invisible-opener ()
-  "Create function to temporarily open overlays which hide the current line.
+(defun consult--invisible-open-temporarily ()
+  "Temporarily open overlays which hide the current line.
 See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
   (if (and (derived-mode-p #'org-mode) (fboundp 'org-fold-show-set-visibility))
       ;; New Org 9.6 fold-core API
+      ;; TODO The provided Org API `org-fold-show-set-visibility' cannot be used
+      ;; efficiently. We obtain all regions in the whole buffer in order to
+      ;; restore them. A better show API would return all the applied
+      ;; modifications such that we can restore the ones which got modified.
       (let ((regions (delq nil (org-fold-core-get-regions
-                                :with-markers t :from (point-min) :to (point-max))))
-            restore)
-        (lambda (open)
-          (when restore
-            (pcase-dolist (`(,beg ,end ,spec) regions)
-              (org-fold-core-region beg end t spec))
-            (setq restore nil))
-          (when open
-            (org-fold-show-set-visibility 'local)
-            (setq restore t))))
+                                :with-markers t :from (point-min) :to (point-max)))))
+        (org-fold-show-set-visibility 'local)
+        (list (lambda ()
+                (pcase-dolist (`(,beg ,end ,spec) regions)
+                  (org-fold-core-region beg end t spec)
+                  (when (markerp beg) (set-marker beg nil))
+                  (when (markerp end) (set-marker end nil))))))
     (let (restore)
-      (lambda (open)
-        (mapc #'funcall restore)
-        (setq restore nil)
-        (dolist (ov (let ((inhibit-field-text-motion t))
-                      (and open
-                           (overlays-in (line-beginning-position) (line-end-position)))))
-          (let ((inv (overlay-get ov 'invisible)))
-            (when (and (invisible-p inv) (overlay-get ov 'isearch-open-invisible))
-              (push (if-let (fun (overlay-get ov 'isearch-open-invisible-temporary))
-                        (progn
-                          (funcall fun ov nil)
-                          (lambda () (funcall fun ov t)))
-                      (overlay-put ov 'invisible nil)
-                      (lambda () (overlay-put ov 'invisible inv)))
-                    restore))))))))
+      (dolist (ov (let ((inhibit-field-text-motion t))
+                    (overlays-in (line-beginning-position) (line-end-position))))
+        (let ((inv (overlay-get ov 'invisible)))
+          (when (and (invisible-p inv) (overlay-get ov 'isearch-open-invisible))
+            (push (if-let (fun (overlay-get ov 'isearch-open-invisible-temporary))
+                      (progn
+                        (funcall fun ov nil)
+                        (lambda () (funcall fun ov t)))
+                    (overlay-put ov 'invisible nil)
+                    (lambda () (overlay-put ov 'invisible inv)))
+                  restore))))
+      restore)))
 
 (defun consult--jump-1 (pos)
   "Go to POS and recenter."
@@ -1435,14 +1432,13 @@ The function can be used as the `:state' argument of `consult--read'."
   (let ((saved-min (point-min-marker))
         (saved-max (point-max-marker))
         (saved-pos (point-marker))
-        (open-invisible (consult--invisible-opener))
-        overlays)
+        overlays invisible)
     (set-marker-insertion-type saved-max t) ;; Grow when text is inserted
     (lambda (action cand)
       (when (eq action 'preview)
-        (funcall open-invisible nil)
+        (mapc #'funcall invisible)
         (mapc #'delete-overlay overlays)
-        (setq overlays nil)
+        (setq invisible nil overlays nil)
         (if (not cand)
             ;; If position cannot be previewed, return to saved position
             (let ((saved-buffer (marker-buffer saved-pos)))
@@ -1453,8 +1449,8 @@ The function can be used as the `:state' argument of `consult--read'."
                 (goto-char saved-pos)))
           ;; Handle positions with overlay information
           (consult--jump-1 (or (car-safe cand) cand))
-          (funcall open-invisible 'open)
-          (setq overlays
+          (setq invisible (consult--invisible-open-temporarily)
+                overlays
                 (list (save-excursion
                         (let ((vbeg (progn (beginning-of-visual-line) (point)))
                               (vend (progn (end-of-visual-line) (point)))
@@ -3430,9 +3426,11 @@ narrowing and the settings `consult-goto-line-numbers' and
   (interactive)
   (find-file
    (consult--read
-    (or (mapcar #'abbreviate-file-name recentf-list)
-        (user-error "No recent files, `recentf-mode' is %s"
-                    (if recentf-mode "on" "off")))
+    (or
+     (let (file-name-handler-alist) ;; No Tramp slowdown please
+       (mapcar #'abbreviate-file-name recentf-list))
+     (user-error "No recent files, `recentf-mode' is %s"
+                 (if recentf-mode "on" "off")))
     :prompt "Find recent file: "
     :sort nil
     :require-match t
@@ -3740,14 +3738,20 @@ alternative, you can run `embark-export' from commands like `M-x' and
   (let ((pattern
          (consult--read
           obarray
-          :prompt "Apropos: "
+          :prompt "consult-apropos (obsolete): "
           :predicate (lambda (x) (or (fboundp x) (boundp x) (facep x) (symbol-plist x)))
-          :history 'consult--apropos-history
           :category 'symbol
           :default (thing-at-point 'symbol))))
     (when (string= pattern "")
       (user-error "No pattern given"))
     (apropos pattern)))
+
+(make-obsolete
+ 'consult-apropos
+ "consult-apropos has been deprecated in favor of Embark actions:
+M-x describe-symbol <regexp> M-x embark-export
+M-x describe-symbol <regexp> M-x embark-act a"
+               "0.20")
 
 ;;;;; Command: consult-complex-command
 
@@ -4243,17 +4247,20 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     ,(lambda ()
       (when-let (root (consult--project-root))
         (let ((len (length root))
-              (ht (consult--buffer-file-hash)))
-          (mapcar (lambda (file)
-                    (let ((part (substring file len)))
-                      (when (equal part "") (setq part "./"))
-                      (put-text-property 0 (length part)
-                                         'multi-category `(file . ,file) part)
-                      part))
-                  (seq-filter (lambda (x)
-                                (and (not (gethash x ht))
-                                     (string-prefix-p root x)))
-                              recentf-list))))))
+              (ht (consult--buffer-file-hash))
+              file-name-handler-alist ;; No Tramp slowdown please.
+              items)
+          (dolist (file recentf-list (nreverse items))
+            ;; Emacs 29 abbreviates file paths by default, see
+            ;; `recentf-filename-handlers'.
+            (unless (eq (aref file 0) ?/)
+              (setq file (expand-file-name file)))
+            (when (and (not (gethash file ht)) (string-prefix-p root file))
+              (let ((part (substring file len)))
+                (when (equal part "") (setq part "./"))
+                (put-text-property 0 (length part)
+                                   'multi-category `(file . ,file) part)
+                (push part items))))))))
   "Project file candidate source for `consult-buffer'.")
 
 (defvar consult--source-hidden-buffer
@@ -4325,9 +4332,16 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
     :enabled  ,(lambda () recentf-mode)
     :items
     ,(lambda ()
-       (let ((ht (consult--buffer-file-hash)))
-         (mapcar #'abbreviate-file-name
-                 (seq-remove (lambda (x) (gethash x ht)) recentf-list)))))
+       (let ((ht (consult--buffer-file-hash))
+             file-name-handler-alist ;; No Tramp slowdown please.
+             items)
+         (dolist (file recentf-list (nreverse items))
+           ;; Emacs 29 abbreviates file paths by default, see
+           ;; `recentf-filename-handlers'.
+           (unless (eq (aref file 0) ?/)
+             (setq file (expand-file-name file)))
+           (unless (gethash file ht)
+             (push (abbreviate-file-name file) items))))))
   "Recent file candidate source for `consult-buffer'.")
 
 ;;;###autoload
