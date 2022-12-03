@@ -456,6 +456,7 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
 (defvar consult--find-history nil)
 (defvar consult--man-history nil)
 (defvar consult--line-history nil)
+(defvar consult--line-multi-history nil)
 (defvar consult--theme-history nil)
 (defvar consult--minor-mode-menu-history nil)
 (defvar consult--kmacro-history nil)
@@ -1022,7 +1023,8 @@ selection change to full Emacs markers."
           (lambda (_)
             (unless (consult--completion-window-p)
               (remove-hook 'window-selection-change-functions hook)
-              (mapc #'consult--get-location candidates))))
+              (mapc #'consult--get-location
+                    (if (functionp candidates) (funcall candidates) candidates)))))
     (lambda (action cand)
       (pcase action
         ('setup (add-hook 'window-selection-change-functions hook))
@@ -1106,7 +1108,7 @@ Return the location marker."
     (while (< (point) pos)
       (forward-line)
       (when (<= (point) pos)
-        (setq line (1+ line))))
+        (cl-incf line)))
     (goto-char pos)
     line))
 
@@ -1123,18 +1125,6 @@ Return the location marker."
             (forward-line (1- line))
             (forward-char column))
           (point-marker))))))
-
-(defun consult--line-group (cand transform)
-  "Group function used by `consult-line-multi'.
-If TRANSFORM non-nil, return transformed CAND, otherwise return title."
-  (if transform
-      cand
-    (let ((marker (car (get-text-property 0 'consult-location cand))))
-      (buffer-name
-       ;; Handle cheap marker
-       (if (consp marker)
-           (car marker)
-         (marker-buffer marker))))))
 
 (defun consult--line-prefix (&optional curr-line)
   "Annotate `consult-location' candidates with line numbers.
@@ -1998,7 +1988,7 @@ PROPS are optional properties passed to `make-process'."
                      (funcall async 'flush))
                    (overlay-put indicator 'display (consult--process-indicator event))
                    (when (and (string-prefix-p "finished" event) (not (string= rest "")))
-                     (setq count (+ count 1))
+                     (cl-incf count)
                      (funcall async (list rest)))
                    (consult--async-log
                     "consult--async-process sentinel: event=%s lines=%d\n"
@@ -2138,6 +2128,33 @@ The refresh happens after a DELAY, defaulting to `consult-async-refresh-delay'."
   "Filter candidates of ASYNC by FUN."
   (consult--async-transform async seq-filter fun))
 
+(defun consult--dynamic-collection-source (async fun)
+  "Dynamic collection source.
+ASYNC is the sink.
+FUN computes the candidates given the input."
+  (let ((input "") current)
+    (lambda (action)
+      (pcase action
+        ('nil
+         (if (or (equal input "") (equal input current))
+             (funcall async nil)
+           (funcall async (prog1 (funcall fun input)
+                            (funcall async 'flush)
+                            (setq current input)))))
+        ((pred stringp)
+         (setq input action)
+         (funcall async 'refresh))
+        (_ (funcall async action))))))
+
+(defun consult--dynamic-collection (fun)
+  "Dynamic collection with input splitting.
+FUN computes the candidates given the input."
+  (thread-first
+    (consult--async-sink)
+    (consult--dynamic-collection-source fun)
+    (consult--async-throttle)
+    (consult--async-split)))
+
 (defun consult--command-builder (builder)
   "Return command line builder given CMD.
 BUILDER is the command line builder function."
@@ -2154,7 +2171,8 @@ command line builder function, which takes the input string and must either
 return a list of command line arguments or a plist with the command line
 argument list :command and a highlighting function :highlight."
   (declare (indent 1))
-  `(thread-first (consult--async-sink)
+  `(thread-first
+     (consult--async-sink)
      (consult--async-refresh-timer)
      ,@(seq-take-while (lambda (x) (not (keywordp x))) args)
      (consult--async-process
@@ -2245,7 +2263,7 @@ PREVIEW-KEY are the preview keys."
   (let* ((max (length str))
          (end max))
     (while (and (> end 0) (consult--tofu-p (aref str (1- end))))
-      (setq end (1- end)))
+      (cl-decf end))
     (when (< end max)
       (setq str (copy-sequence str))
       (put-text-property end max 'invisible t str))
@@ -2257,7 +2275,7 @@ PREVIEW-KEY are the preview keys."
          (max (point-max))
          (pos max))
     (while (and (> pos min) (consult--tofu-p (char-before pos)))
-      (setq pos (1- pos)))
+      (cl-decf pos))
     (when (< pos max)
       (add-text-properties pos max '(invisible t rear-nonsticky t cursor-intangible t)))))
 
@@ -2509,7 +2527,7 @@ INHERIT-INPUT-METHOD, if non-nil the minibuffer inherits the input method."
                                    `(multi-category (,cat . ,item) ,@face) cand))
             (when (> width max-width) (setq max-width width))
             (push cand candidates))))
-      (setq idx (1+ idx)))
+      (cl-incf idx))
     (list def (+ 3 max-width) (nreverse candidates))))
 
 (defun consult--multi-enabled-sources (sources)
@@ -2859,7 +2877,7 @@ See `multi-occur' for the meaning of the arguments BUFS, REGEXP and NLINES."
                (if-let (fun (bound-and-true-p outline-search-function))
                    (funcall fun)
                  (re-search-forward heading-regexp nil t)))
-        (setq line (+ line (consult--count-lines (match-beginning 0))))
+        (cl-incf line (consult--count-lines (match-beginning 0)))
         (push (consult--location-candidate
                (consult--buffer-substring (line-beginning-position)
                                           (line-end-position)
@@ -3014,7 +3032,7 @@ CURR-LINE is the current line number."
           (push (consult--location-candidate str (cons buffer (point)) line) candidates)
           (when (and (not default-cand) (>= line curr-line))
             (setq default-cand candidates)))
-        (setq line (1+ line))))
+        (cl-incf line)))
     (when candidates
       (nreverse
        (if (or top (not default-cand))
@@ -3023,22 +3041,15 @@ CURR-LINE is the current line number."
            (setcdr default-cand nil)
            (nconc before candidates)))))))
 
-(defun consult--line-match (selected candidates input &rest _)
-  "Lookup position of match.
-
+(defun consult--line-point-placement (selected candidates highlighted &rest ignored-faces)
+  "Find point position on matching line.
 SELECTED is the currently selected candidate.
 CANDIDATES is the list of candidates.
-INPUT is the input string entered by the user."
+HIGHLIGHTED is the highlighted string to determine the match position.
+IGNORED-FACES are ignored when determining the match position."
   (when-let (pos (consult--lookup-location selected candidates))
-    (if-let* (((not (string-blank-p input)))
-              (highlighted (consult--completion-filter
-                            input
-                            (list (substring-no-properties selected))
-                            'consult-location 'highlight)))
-        ;; Ignore `completions-first-difference' when matching, since
-        ;; this face doesn't yield a meaningful jump position.
-        (let* ((matches (consult--point-placement (car highlighted) 0
-                                                  'completions-first-difference))
+    (if highlighted
+        (let* ((matches (apply #'consult--point-placement highlighted 0 ignored-faces))
                (dest (+ pos (car matches))))
           ;; Only create a new marker when jumping across buffers (for example
           ;; `consult-line-multi'). Avoid creating unnecessary markers, when
@@ -3048,28 +3059,18 @@ INPUT is the input string entered by the user."
           (cons dest (cdr matches)))
       pos)))
 
-(cl-defun consult--line (candidates &key curr-line prompt initial group)
-  "Select from from line CANDIDATES and jump to the match.
-CURR-LINE is the current line. See `consult--read' for the arguments PROMPT,
-INITIAL and GROUP."
-  (consult--read
-   candidates
-   :prompt prompt
-   :annotate (consult--line-prefix curr-line)
-   :group group
-   :category 'consult-location
-   :sort nil
-   :require-match t
-   ;; Always add last isearch string to future history
-   :add-history (list (thing-at-point 'symbol) isearch-string)
-   :history '(:input consult--line-history)
-   :lookup #'consult--line-match
-   :default (car candidates)
-   ;; Add isearch-string as initial input if starting from isearch
-   :initial (or initial
-                (and isearch-mode
-                     (prog1 isearch-string (isearch-done))))
-   :state (consult--location-state candidates)))
+(defun consult--line-match (selected candidates input &rest _)
+  "Lookup position of match.
+SELECTED is the currently selected candidate.
+CANDIDATES is the list of candidates.
+INPUT is the input string entered by the user."
+  (consult--line-point-placement selected candidates
+                                 (and (not (string-blank-p input))
+                                      (car (consult--completion-filter
+                                            input
+                                            (list (substring-no-properties selected))
+                                            'consult-location 'highlight)))
+                                 'completions-first-difference))
 
 ;;;###autoload
 (defun consult-line (&optional initial start)
@@ -3082,43 +3083,116 @@ narrowing. Optional INITIAL input can be provided. The search starting point is
 changed if the START prefix argument is set. The symbol at point and the last
 `isearch-string' is added to the future history."
   (interactive (list nil (not (not current-prefix-arg))))
-  (let ((curr-line (line-number-at-pos (point) consult-line-numbers-widen))
-        (top (not (eq start consult-line-start-from-top))))
-    (consult--line
-     (or (consult--with-increased-gc
-          (consult--line-candidates top curr-line))
-         (user-error "No lines"))
-     :curr-line (and (not top) curr-line)
+  (let* ((curr-line (line-number-at-pos (point) consult-line-numbers-widen))
+         (top (not (eq start consult-line-start-from-top)))
+         (candidates (or (consult--with-increased-gc
+                          (consult--line-candidates top curr-line))
+                         (user-error "No lines"))))
+    (consult--read
+     candidates
      :prompt (if top "Go to line from top: " "Go to line: ")
-     :initial initial)))
+     :annotate (consult--line-prefix curr-line)
+     :category 'consult-location
+     :sort nil
+     :require-match t
+     ;; Always add last isearch string to future history
+     :add-history (list (thing-at-point 'symbol) isearch-string)
+     :history '(:input consult--line-history)
+     :lookup #'consult--line-match
+     :default (car candidates)
+     ;; Add isearch-string as initial input if starting from isearch
+     :initial (or initial
+                  (and isearch-mode
+                       (prog1 isearch-string (isearch-done))))
+     :state (consult--location-state candidates))))
 
 ;;;;; Command: consult-line-multi
 
-(defun consult--line-multi-candidates (buffers)
-  "Collect the line candidates from multiple buffers.
+(defun consult--line-multi-match (selected candidates &rest _)
+  "Lookup position of match.
+SELECTED is the currently selected candidate.
+CANDIDATES is the list of candidates."
+  (consult--line-point-placement selected candidates
+                                 (car (member selected candidates))))
+
+(defun consult--line-multi-group (cand transform)
+  "Group function used by `consult-line-multi'.
+If TRANSFORM non-nil, return transformed CAND, otherwise return title."
+  (if transform
+      cand
+    (let ((marker (car (get-text-property 0 'consult-location cand))))
+      (buffer-name
+       ;; Handle cheap marker
+       (if (consp marker)
+           (car marker)
+         (marker-buffer marker))))))
+
+(defun consult--line-multi-candidates (buffers input)
+  "Collect matching candidates from multiple buffers.
+INPUT is the user input which should be matched.
 BUFFERS is the list of buffers."
-  (or (apply #'nconc
-             (consult--buffer-map buffers
-              #'consult--line-candidates 'top most-positive-fixnum))
-      (user-error "No lines")))
+  (pcase-let ((`(,regexps . ,hl)
+               (funcall consult--regexp-compiler
+                        input 'emacs completion-ignore-case))
+              (candidates nil)
+              (inhibit-field-text-motion t))
+    (setq regexps (mapcar (lambda (x) (format "^.*?\\(?:%s\\)" x)) regexps))
+    (dolist (buf buffers (nreverse candidates))
+     (with-current-buffer buf
+       (save-excursion
+         (save-match-data
+           (let ((line (line-number-at-pos (point-min) consult-line-numbers-widen)))
+             (goto-char (point-min))
+             (while (save-excursion (re-search-forward (car regexps) nil t))
+               (cl-incf line (consult--count-lines (match-beginning 0)))
+               (let ((beg (line-beginning-position))
+                     (end (line-end-position)))
+                 (when (seq-every-p
+                        (lambda (x) (save-excursion (re-search-forward x end t)))
+                        (cdr regexps))
+                   (let ((cand (buffer-substring-no-properties beg end)))
+                     (funcall hl cand)
+                     (push (consult--location-candidate cand (cons buf beg) line)
+                           candidates))))
+               (unless (eobp) (forward-char 1))))))))))
 
 ;;;###autoload
 (defun consult-line-multi (query &optional initial)
   "Search for a matching line in multiple buffers.
 
-By default search across all project buffers. If the prefix argument QUERY is
-non-nil, all buffers are searched. Optional INITIAL input can be provided. See
-`consult-line' for more information. In order to search a subset of buffers,
-QUERY can be set to a plist according to `consult--buffer-query'."
+By default search across all project buffers. If the prefix
+argument QUERY is non-nil, all buffers are searched. Optional
+INITIAL input can be provided. The symbol at point and the last
+`isearch-string' is added to the future history.In order to
+search a subset of buffers, QUERY can be set to a plist according
+to `consult--buffer-query'."
   (interactive "P")
   (unless (keywordp (car-safe query))
-    (setq query (list :sort 'alpha :directory (and (not query) 'project))))
-  (let ((buffers (consult--buffer-query-prompt "Go to line" query)))
-    (consult--line
-     (consult--line-multi-candidates (cdr buffers))
-     :prompt (car buffers)
-     :initial initial
-     :group #'consult--line-group)))
+    (setq query (list :sort 'alpha-current :directory (and (not query) 'project))))
+  (pcase-let* ((`(,prompt . ,buffers) (consult--buffer-query-prompt "Go to line" query))
+               (collection (consult--dynamic-collection
+                            (apply-partially #'consult--line-multi-candidates
+                                             buffers))))
+    (consult--read
+     collection
+     :prompt prompt
+     :annotate (consult--line-prefix)
+     :category 'consult-location
+     :sort nil
+     :require-match t
+     ;; Always add last isearch string to future history
+     :add-history (mapcar #'consult--async-split-initial
+                          (delq nil (list (thing-at-point 'symbol)
+                                          isearch-string)))
+     :history '(:input consult--line-multi-history)
+     :lookup #'consult--line-multi-match
+     ;; Add isearch-string as initial input if starting from isearch
+     :initial (consult--async-split-initial
+               (or initial
+                   (and isearch-mode
+                        (prog1 isearch-string (isearch-done)))))
+     :state (consult--location-state (lambda () (funcall collection nil)))
+     :group #'consult--line-multi-group)))
 
 ;;;;; Command: consult-keep-lines
 
@@ -4064,7 +4138,7 @@ The command supports previewing the currently selected theme."
 ;;;;; Command: consult-buffer
 
 (defun consult--buffer-sort-alpha (buffers)
-  "Sort BUFFERS alphabetically, but push down starred buffers."
+  "Sort BUFFERS alphabetically, put starred buffers at the end."
   (sort buffers
         (lambda (x y)
           (setq x (buffer-name x) y (buffer-name y))
@@ -4073,6 +4147,14 @@ The command supports previewing the currently selected theme."
             (if (eq a b)
                 (string< x y)
               (not a))))))
+
+(defun consult--buffer-sort-alpha-current (buffers)
+  "Sort BUFFERS alphabetically, put current at the beginning."
+  (let ((buffers (consult--buffer-sort-alpha buffers))
+        (current (current-buffer)))
+    (if (memq current buffers)
+        (cons current (delq current buffers))
+      buffers)))
 
 (defun consult--buffer-sort-visibility (buffers)
   "Sort BUFFERS by visibility."
@@ -4155,21 +4237,6 @@ AS is a conversion function."
            (or (not predicate) (funcall predicate it))
            (if as (funcall as it) it)))))
     buffers))
-
-(defun consult--buffer-map (buffer &rest app)
-  "Run function application APP for each BUFFER.
-Report progress and return a list of the results"
-  (consult--with-increased-gc
-   (let* ((count (length buffer))
-          (reporter (make-progress-reporter "Collecting" 0 count)))
-     (prog1
-         (seq-map-indexed (lambda (buf idx)
-                            (with-current-buffer buf
-                              (prog1 (apply app)
-                                (progress-reporter-update
-                                 reporter (1+ idx) (buffer-name)))))
-                          buffer)
-       (progress-reporter-done reporter)))))
 
 (defun consult--buffer-file-hash ()
   "Return hash table of all buffer file names."
