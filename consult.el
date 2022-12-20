@@ -3219,7 +3219,7 @@ to `consult--buffer-query'."
             (setq content-orig (buffer-string)
                   replace (lambda (content &optional pos)
                             (delete-region rbeg rend)
-                            (insert content)
+                            (insert-before-markers content)
                             (goto-char (or pos rbeg))
                             (setq rend (+ rbeg (length content)))
                             (add-face-text-property rbeg rend 'region t)))))
@@ -4881,11 +4881,13 @@ details regarding the asynchronous search."
 
 (defun consult--man-builder (input)
   "Build command line given CONFIG and INPUT."
-  (pcase-let ((`(,arg . ,opts) (consult--command-split input)))
-    (unless (string-blank-p arg)
+  (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+               (`(,re . ,hl) (funcall consult--regexp-compiler arg 'basic t)))
+    (when re
       (list :command (append (consult--build-args consult-man-args)
-                             (list arg) opts)
-            :highlight (cdr (consult--default-regexp-compiler input 'basic t))))))
+                             (list (consult--join-regexps re 'basic))
+                             opts)
+            :highlight hl))))
 
 (defun consult--man-format (lines)
   "Format man candidates from LINES."
