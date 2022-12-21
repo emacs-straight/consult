@@ -2854,6 +2854,8 @@ See `multi-occur' for the meaning of the arguments BUFS, REGEXP and NLINES."
                 (occur-read-primary-args)))
   (occur-1 regexp nlines bufs))
 
+(make-obsolete 'consult-multi-occur 'consult-line-multi "0.29")
+
 ;;;;; Command: consult-outline
 
 (defun consult--outline-candidates ()
@@ -3530,6 +3532,8 @@ narrowing and the settings `consult-goto-line-numbers' and
                     (_ "xdg-open"))
                   nil 0 nil
                   (expand-file-name file))))
+
+(make-obsolete 'consult-file-externally 'embark-open-externally "0.29")
 
 ;;;;; Command: consult-mode-command
 
@@ -4663,30 +4667,26 @@ INITIAL is inital input."
     (eq 0 (apply #'call-process-region (point-min) (point-max)
                  (car cmd) nil nil nil `(,@(cdr cmd) "^(?=.*b)(?=.*a)")))))
 
-(defvar consult--grep-regexp-type nil)
-
-(defun consult--grep-builder (input)
-  "Build command line given INPUT."
-  (unless (boundp 'grep-find-ignored-files) (require 'grep))
-  (pcase-let* ((cmd (consult--build-args consult-grep-args))
-               (`(,arg . ,opts) (consult--command-split input))
-               (flags (append cmd opts))
-               (ignore-case (or (member "-i" flags) (member "--ignore-case" flags))))
-    (if (or (member "-F" flags) (member "--fixed-strings" flags))
-        `(:command (,@cmd "-e" ,arg ,@opts) :highlight
-                   ,(apply-partially #'consult--highlight-regexps
-                                     (list (regexp-quote arg)) ignore-case))
-      (pcase-let* ((type (or consult--grep-regexp-type
-                             (setq consult--grep-regexp-type
-                                   (if (consult--grep-lookahead-p (car cmd) "-P") 'pcre 'extended))))
-                   (`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
-        (when re
-          `(:command
-            (,@cmd
-             ,(if (eq type 'pcre) "-P" "-E") ;; perl or extended
-             "-e" ,(consult--join-regexps re type)
-             ,@opts)
-            :highlight ,hl))))))
+(defun consult--grep-make-builder ()
+  "Create grep command line builder."
+  (let* ((cmd (consult--build-args consult-grep-args))
+         (type (if (consult--grep-lookahead-p (car cmd) "-P") 'pcre 'extended)))
+    (lambda (input)
+      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+                   (flags (append cmd opts))
+                   (ignore-case (or (member "-i" flags) (member "--ignore-case" flags))))
+        (if (or (member "-F" flags) (member "--fixed-strings" flags))
+            `(:command (,@cmd "-e" ,arg ,@opts) :highlight
+                       ,(apply-partially #'consult--highlight-regexps
+                                         (list (regexp-quote arg)) ignore-case))
+          (pcase-let ((`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
+            (when re
+              `(:command
+                (,@cmd
+                 ,(if (eq type 'pcre) "-P" "-E") ;; perl or extended
+                 "-e" ,(consult--join-regexps re type)
+                 ,@opts)
+                :highlight ,hl))))))))
 
 ;;;###autoload
 (defun consult-grep (&optional dir initial)
@@ -4727,7 +4727,7 @@ the directory to search in. By default the project directory is used
 if `consult-project-function' is defined and returns non-nil.
 Otherwise the `default-directory' is searched."
   (interactive "P")
-  (consult--grep "Grep" #'consult--grep-builder dir initial))
+  (consult--grep "Grep" (consult--grep-make-builder) dir initial))
 
 ;;;;; Command: consult-git-grep
 
@@ -4757,32 +4757,29 @@ for more details."
 
 ;;;;; Command: consult-ripgrep
 
-(defvar consult--ripgrep-regexp-type nil)
-
-(defun consult--ripgrep-builder (input)
-  "Build command line given INPUT."
-  (pcase-let* ((cmd (consult--build-args consult-ripgrep-args))
-               (`(,arg . ,opts) (consult--command-split input))
-               (flags (append cmd opts))
-               (ignore-case (if (or (member "-S" flags) (member "--smart-case" flags))
-                                (let (case-fold-search)
-                                  ;; Case insensitive if there are no uppercase letters
-                                  (not (string-match-p "[[:upper:]]" arg)))
-                              (or (member "-i" flags) (member "--ignore-case" flags)))))
-    (if (or (member "-F" flags) (member "--fixed-strings" flags))
-        `(:command (,@cmd "-e" ,arg ,@opts) :highlight
-                   ,(apply-partially #'consult--highlight-regexps
-                                     (list (regexp-quote arg)) ignore-case))
-      (pcase-let* ((type (or consult--ripgrep-regexp-type
-                             (setq consult--ripgrep-regexp-type
-                                   (if (consult--grep-lookahead-p (car cmd) "-P") 'pcre 'extended))))
-                   (`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
-        (when re
-          `(:command
-            (,@cmd ,@(and (eq type 'pcre) '("-P"))
-                   "-e" ,(consult--join-regexps re type)
-                   ,@opts)
-            :highlight ,hl))))))
+(defun consult--ripgrep-make-builder ()
+  "Create ripgrep command line builder."
+  (let* ((cmd (consult--build-args consult-ripgrep-args))
+         (type (if (consult--grep-lookahead-p (car cmd) "-P") 'pcre 'extended)))
+    (lambda (input)
+      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+                   (flags (append cmd opts))
+                   (ignore-case (if (or (member "-S" flags) (member "--smart-case" flags))
+                                    (let (case-fold-search)
+                                      ;; Case insensitive if there are no uppercase letters
+                                      (not (string-match-p "[[:upper:]]" arg)))
+                                  (or (member "-i" flags) (member "--ignore-case" flags)))))
+        (if (or (member "-F" flags) (member "--fixed-strings" flags))
+            `(:command (,@cmd "-e" ,arg ,@opts) :highlight
+                       ,(apply-partially #'consult--highlight-regexps
+                                         (list (regexp-quote arg)) ignore-case))
+          (pcase-let ((`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
+            (when re
+              `(:command
+                (,@cmd ,@(and (eq type 'pcre) '("-P"))
+                       "-e" ,(consult--join-regexps re type)
+                       ,@opts)
+                :highlight ,hl))))))))
 
 ;;;###autoload
 (defun consult-ripgrep (&optional dir initial)
@@ -4790,7 +4787,7 @@ for more details."
 The initial input is given by the INITIAL argument. See `consult-grep'
 for more details."
   (interactive "P")
-  (consult--grep "Ripgrep" #'consult--ripgrep-builder dir initial))
+  (consult--grep "Ripgrep" (consult--ripgrep-make-builder) dir initial))
 
 ;;;;; Command: consult-find
 
@@ -4816,33 +4813,30 @@ INITIAL is inital input."
    :category 'file
    :history '(:input consult--find-history)))
 
-(defvar consult--find-regexp-type nil)
-
-(defun consult--find-builder (input)
-  "Build command line given INPUT."
-  (pcase-let* ((cmd (consult--build-args consult-find-args))
-               (type (or consult--find-regexp-type
-                         (setq consult--find-regexp-type
-                               (if (eq 0 (call-process-shell-command
-                                          (concat (car cmd) " -regextype emacs -version")))
-                                   'emacs 'basic))))
-               (`(,arg . ,opts) (consult--command-split input))
-               ;; ignore-case=t since -iregex is used below
-               (`(,re . ,hl) (funcall consult--regexp-compiler arg type t)))
-    (when re
-      (list :command
-            (append cmd
-                    (cdr (mapcan
-                          (lambda (x)
-                            `("-and" "-iregex"
-                              ,(format ".*%s.*"
-                                       ;; HACK Replace non-capturing groups with capturing groups.
-                                       ;; GNU find does not support non-capturing groups.
-                                       (replace-regexp-in-string
-                                        "\\\\(\\?:" "\\(" x 'fixedcase 'literal))))
-                          re))
-                    opts)
-            :highlight hl))))
+(defun consult--find-make-builder ()
+  "Create find command line builder."
+  (let* ((cmd (consult--build-args consult-find-args))
+         (type (if (eq 0 (call-process-shell-command
+                          (concat (car cmd) " -regextype emacs -version")))
+                   'emacs 'basic)))
+    (lambda (input)
+      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+                   ;; ignore-case=t since -iregex is used below
+                   (`(,re . ,hl) (funcall consult--regexp-compiler arg type t)))
+        (when re
+          (list :command
+                (append cmd
+                        (cdr (mapcan
+                              (lambda (x)
+                                `("-and" "-iregex"
+                                  ,(format ".*%s.*"
+                                           ;; HACK Replace non-capturing groups with capturing groups.
+                                           ;; GNU find does not support non-capturing groups.
+                                           (replace-regexp-in-string
+                                            "\\\\(\\?:" "\\(" x 'fixedcase 'literal))))
+                              re))
+                        opts)
+                :highlight hl))))))
 
 ;;;###autoload
 (defun consult-find (&optional dir initial)
@@ -4853,7 +4847,7 @@ See `consult-grep' for more details regarding the asynchronous search."
   (interactive "P")
   (let* ((prompt-dir (consult--directory-prompt "Find" dir))
          (default-directory (cdr prompt-dir)))
-    (find-file (consult--find (car prompt-dir) #'consult--find-builder initial))))
+    (find-file (consult--find (car prompt-dir) (consult--find-make-builder) initial))))
 
 ;;;;; Command: consult-locate
 
