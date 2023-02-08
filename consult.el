@@ -5,8 +5,8 @@
 ;; Author: Daniel Mendler and Consult contributors
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
-;; Version: 0.31
-;; Package-Requires: ((emacs "27.1") (compat "29.1.3.2"))
+;; Version: 0.32
+;; Package-Requires: ((emacs "27.1") (compat "29.1.3.3"))
 ;; Homepage: https://github.com/minad/consult
 
 ;; This file is part of GNU Emacs.
@@ -52,7 +52,6 @@
 (eval-when-compile
   (require 'cl-lib)
   (require 'subr-x))
-(require 'seq)
 (require 'compat)
 (require 'bookmark)
 
@@ -501,6 +500,12 @@ as the public API.")
 This function can be called by custom completion systems from
 outside the minibuffer.")
 
+(defvar consult--annotate-align-step 10
+  "Round candidate width.")
+
+(defvar consult--annotate-align-width 0
+  "Maximum candidate width used for annotation alignment.")
+
 (defconst consult--tofu-char #x200000
   "Special character used to encode line prefixes for disambiguation.
 We use invalid characters outside the Unicode range.")
@@ -588,9 +593,7 @@ Turn ARG into a list, and for each element either:
 (defmacro consult--keep! (list form)
   "Evaluate FORM for every element of LIST and keep the non-nil results."
   (declare (indent 1))
-  (let ((head (make-symbol "head"))
-        (prev (make-symbol "prev"))
-        (result (make-symbol "result")))
+  (cl-with-gensyms (head prev result)
     `(let* ((,head (cons nil ,list))
             (,prev ,head))
        (while (cdr ,prev)
@@ -659,7 +662,7 @@ HIGHLIGHT."
 
 The line beginning/ending BEG/END is bound in BODY."
   (declare (indent 2))
-  (let ((max (make-symbol "max")))
+  (cl-with-gensyms (max)
     `(save-excursion
        (let ((,beg (point-min)) (,max (point-max)) end)
          (while (< ,beg ,max)
@@ -786,16 +789,13 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
 (define-obsolete-function-alias
   'consult--format-location 'consult--format-file-line-match "0.31")
 
-(defmacro consult--overlay (beg end &rest props)
+(defun consult--make-overlay (beg end &rest props)
   "Make consult overlay between BEG and END with PROPS."
-  (let ((ov (make-symbol "ov"))
-        (puts))
+  (let ((ov (make-overlay beg end)))
     (while props
-      (push `(overlay-put ,ov ,(car props) ,(cadr props)) puts)
+      (overlay-put ov (car props) (cadr props))
       (setq props (cddr props)))
-    `(let ((,ov (make-overlay ,beg ,end)))
-       ,@puts
-       ,ov)))
+    ov))
 
 (defun consult--remove-dups (list)
   "Remove duplicate strings from LIST."
@@ -838,7 +838,7 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
 
 (defmacro consult--with-increased-gc (&rest body)
   "Temporarily increase the gc limit in BODY to optimize for throughput."
-  (let ((overwrite (make-symbol "overwrite")))
+  (cl-with-gensyms (overwrite)
     `(let* ((,overwrite (> consult--gc-threshold gc-cons-threshold))
             (gc-cons-threshold (if ,overwrite consult--gc-threshold gc-cons-threshold))
             (gc-cons-percentage (if ,overwrite consult--gc-percentage gc-cons-percentage)))
@@ -939,6 +939,54 @@ MARKER is the cursor position."
 (defun consult--line-with-cursor (marker)
   "Return current line where the cursor MARKER is highlighted."
   (consult--region-with-cursor (pos-bol) (pos-eol) marker))
+
+;;;; Tofu cooks
+
+(defsubst consult--tofu-p (char)
+  "Return non-nil if CHAR is a tofu."
+  (<= consult--tofu-char char (+ consult--tofu-char consult--tofu-range -1)))
+
+(defun consult--tofu-hide (str)
+  "Hide the tofus in STR."
+  (let* ((max (length str))
+         (end max))
+    (while (and (> end 0) (consult--tofu-p (aref str (1- end))))
+      (cl-decf end))
+    (when (< end max)
+      (setq str (copy-sequence str))
+      (put-text-property end max 'invisible t str))
+    str))
+
+(defsubst consult--tofu-append (cand id)
+  "Append tofu-encoded ID to CAND.
+The ID must fit within a single character.  It must be smaller
+than `consult--tofu-range'."
+  (setq id (char-to-string (+ consult--tofu-char id)))
+  (add-text-properties 0 1 '(invisible t consult-strip t) id)
+  (concat cand id))
+
+(defsubst consult--tofu-get (cand)
+  "Extract tofu-encoded ID from CAND.
+See `consult--tofu-append'."
+  (- (aref cand (1- (length cand))) consult--tofu-char))
+
+;; We must disambiguate the lines by adding a prefix such that two lines with
+;; the same text can be distinguished.  In order to avoid matching the line
+;; number, such that the user can search for numbers with `consult-line', we
+;; encode the line number as characters outside the unicode range.  By doing
+;; that, no accidential matching can occur.
+(defun consult--tofu-encode (n)
+  "Return tofu-encoded number N as a string.
+Large numbers are encoded as multiple tofu characters."
+  (let (str tofu)
+    (while (progn
+             (setq tofu (char-to-string
+                         (+ consult--tofu-char (% n consult--tofu-range)))
+                   str (if str (concat tofu str) tofu))
+             (and (>= n consult--tofu-range)
+                  (setq n (/ n consult--tofu-range)))))
+    (add-text-properties 0 (length str) '(invisible t consult-strip t) str)
+    str))
 
 ;;;; Regexp utilities
 
@@ -1409,20 +1457,20 @@ The function can be used as the `:state' argument of `consult--read'."
                         (let ((vbeg (progn (beginning-of-visual-line) (point)))
                               (vend (progn (end-of-visual-line) (point)))
                               (end (pos-eol)))
-                          (consult--overlay vbeg (if (= vend end) (1+ end) vend)
-                                            'face 'consult-preview-line
-                                            'window (selected-window)
-                                            'priority 1)))
-                      (consult--overlay (point) (1+ (point))
-                                        'face 'consult-preview-cursor
-                                        'window (selected-window)
-                                        'priority 3)))
+                          (consult--make-overlay vbeg (if (= vend end) (1+ end) vend)
+                                                 'face 'consult-preview-line
+                                                 'window (selected-window)
+                                                 'priority 1)))
+                      (consult--make-overlay (point) (1+ (point))
+                                             'face 'consult-preview-cursor
+                                             'window (selected-window)
+                                             'priority 3)))
           (dolist (match (cdr-safe cand))
-            (push (consult--overlay (+ (point) (car match))
-                                    (+ (point) (cdr match))
-                                    'face 'consult-preview-match
-                                    'window (selected-window)
-                                    'priority 2)
+            (push (consult--make-overlay (+ (point) (car match))
+                                         (+ (point) (cdr match))
+                                         'face 'consult-preview-match
+                                         'window (selected-window)
+                                         'priority 2)
                   overlays))
           (run-hooks 'consult-after-jump-hook))))))
 
@@ -1485,7 +1533,7 @@ The result can be passed as :state argument to `consult--read'." type)
             (if (key-valid-p key)
                 (setq key (key-parse key))
               ;; TODO: Remove compatibility code, throw error.
-              (message "Invalid preview key: %S" key)))
+              (message "Invalid preview key according to `key-valid-p': %S" key)))
           (push (cons key debounce) keys))
         (pop preview-key)))
     keys))
@@ -1685,14 +1733,14 @@ The default is twice the `consult-narrow-key'."
     (if (key-valid-p consult-widen-key)
         (key-parse consult-widen-key)
       ;; TODO: Remove compatibility code, throw error.
-      (message "Invalid `consult-widen-key': %S" consult-widen-key)
+      (message "Invalid `consult-widen-key' according to `key-valid-p': %S" consult-widen-key)
       consult-widen-key))
    (consult-narrow-key
     (let ((key consult-narrow-key))
       (if (key-valid-p key)
           (setq key (key-parse key))
         ;; TODO: Remove compatibility code, throw error.
-        (message "Invalid `consult-narrow-key': %S" key))
+        (message "Invalid `consult-narrow-key' according to `key-valid-p': %S" key))
       (vconcat key key)))))
 
 (defun consult-narrow (key)
@@ -1710,7 +1758,7 @@ This command is used internally by the narrowing system of `consult--read'."
     (delete-overlay consult--narrow-overlay))
   (when consult--narrow
     (setq consult--narrow-overlay
-          (consult--overlay
+          (consult--make-overlay
            (1- (minibuffer-prompt-end)) (minibuffer-prompt-end)
            'before-string
            (propertize (format " [%s]" (alist-get consult--narrow
@@ -1769,7 +1817,7 @@ to make it available for commands with narrowing."
     (if (key-valid-p key)
         (setq key (key-parse key))
       ;; TODO: Remove compatibility code, throw error.
-      (message "Invalid `consult-narrow-key': %S" key))
+      (message "Invalid `consult-narrow-key' according to `key-valid-p': %S" key))
     (dolist (pair consult--narrow-keys)
       (define-key map (vconcat key (vector (car pair)))
                   (cons (cdr pair) #'consult-narrow))))
@@ -1970,12 +2018,18 @@ SPLIT is the splitting function."
                      (funcall split action))
                     (async-len (length async-str))
                     (input-len (length action))
-                    (end (minibuffer-prompt-end)))
+                    (prompt (minibuffer-prompt-end))
+                    (field-beg prompt)
+                    (field-idx 0))
          ;; Highlight punctuation characters
-         (remove-list-of-text-properties end (+ end input-len) '(face))
+         (remove-list-of-text-properties prompt (+ prompt input-len) '(face field))
          (dolist (hl highlights)
-           (put-text-property (+ end (car hl)) (+ end (cdr hl))
-                              'face 'consult-async-split))
+           (put-text-property field-beg (+ prompt (cdr hl))
+                              'field field-idx)
+           (put-text-property (+ prompt (car hl)) (+ prompt (cdr hl))
+                              'face 'consult-async-split)
+           (setq field-beg (+ prompt (cdr hl))
+                 field-idx (1+ field-idx)))
          (funcall async
                   ;; Pass through if the input is long enough!
                   (if (or force (>= async-len consult-async-min-input))
@@ -2209,8 +2263,7 @@ highlighting function."
 
 (defmacro consult--async-transform (async &rest transform)
   "Use FUN to TRANSFORM candidates of ASYNC."
-  (let ((async-var (make-symbol "async"))
-        (action-var (make-symbol "action")))
+  (cl-with-gensyms (async-var action-var)
     `(let ((,async-var ,async))
        (lambda (,action-var)
          (funcall ,async-var (if (consp ,action-var) (,@transform ,action-var) ,action-var))))))
@@ -2296,6 +2349,18 @@ Note that `consult-narrow-key' and `consult-widen-key' are bound dynamically."
 
 ;;;; Internal API: consult--read
 
+(defun consult--annotate-align (cand ann)
+  "Align annotation ANN by computing the maximum CAND width."
+  (setq consult--annotate-align-width
+        (max consult--annotate-align-width
+             (* (ceiling (consult--display-width cand)
+                         consult--annotate-align-step)
+                consult--annotate-align-step)))
+  (when ann
+    (concat
+     #("   " 0 1 (display (space :align-to (+ left consult--annotate-align-width))))
+     ann)))
+
 (defun consult--add-history (async items)
   "Add ITEMS to the minibuffer future history.
 ASYNC must be non-nil for async completion functions."
@@ -2347,21 +2412,6 @@ PREVIEW-KEY are the preview keys."
                       map))
       old-map))))
 
-(defsubst consult--tofu-p (char)
-  "Return non-nil if CHAR is a tofu."
-  (<= consult--tofu-char char (+ consult--tofu-char consult--tofu-range -1)))
-
-(defun consult--tofu-hide (str)
-  "Hide the tofus in STR."
-  (let* ((max (length str))
-         (end max))
-    (while (and (> end 0) (consult--tofu-p (aref str (1- end))))
-      (cl-decf end))
-    (when (< end max)
-      (setq str (copy-sequence str))
-      (put-text-property end max 'invisible t str))
-    str))
-
 (defun consult--tofu-hide-in-minibuffer (&rest _)
   "Hide the tofus in the minibuffer."
   (let* ((min (minibuffer-prompt-end))
@@ -2371,37 +2421,6 @@ PREVIEW-KEY are the preview keys."
       (cl-decf pos))
     (when (< pos max)
       (add-text-properties pos max '(invisible t rear-nonsticky t cursor-intangible t)))))
-
-(defsubst consult--tofu-append (cand id)
-  "Append tofu-encoded ID to CAND.
-The ID must fit within a single character.  It must be smaller
-than `consult--tofu-range'."
-  (setq id (char-to-string (+ consult--tofu-char id)))
-  (add-text-properties 0 1 '(invisible t consult-strip t) id)
-  (concat cand id))
-
-(defsubst consult--tofu-get (cand)
-  "Extract tofu-encoded ID from CAND.
-See `consult--tofu-append'."
-  (- (aref cand (1- (length cand))) consult--tofu-char))
-
-;; We must disambiguate the lines by adding a prefix such that two lines with
-;; the same text can be distinguished.  In order to avoid matching the line
-;; number, such that the user can search for numbers with `consult-line', we
-;; encode the line number as characters outside the unicode range.  By doing
-;; that, no accidential matching can occur.
-(defun consult--tofu-encode (n)
-  "Return tofu-encoded number N as a string.
-Large numbers are encoded as multiple tofu characters."
-  (let (str tofu)
-    (while (progn
-             (setq tofu (char-to-string
-                         (+ consult--tofu-char (% n consult--tofu-range)))
-                   str (if str (concat tofu str) tofu))
-             (and (>= n consult--tofu-range)
-                  (setq n (/ n consult--tofu-range)))))
-    (add-text-properties 0 (length str) '(invisible t consult-strip t) str)
-    str))
 
 (defun consult--read-annotate (fun cand)
   "Annotate CAND with annotation function FUN."
@@ -2452,6 +2471,7 @@ Large numbers are encoded as multiple tofu characters."
                                 . ,(apply-partially #'consult--read-annotate annotate))))
                          ,@(unless sort '((cycle-sort-function . identity)
                                           (display-sort-function . identity)))))
+             (consult--annotate-align-width 0)
              (result
               (consult--with-preview
                   preview-key state
@@ -2535,6 +2555,47 @@ input method."
                 :sort t
                 :lookup (lambda (selected &rest _) selected)))))
 
+;;;; Internal API: consult--prompt
+
+(cl-defun consult--prompt-1 (&key prompt history add-history initial default
+                                  keymap state preview-key transform inherit-input-method)
+  "See `consult--prompt' for documentation."
+  (consult--minibuffer-with-setup-hook
+      (:append (lambda ()
+                 (consult--setup-keymap keymap nil nil preview-key)
+                 (setq-local minibuffer-default-add-function
+                             (apply-partially #'consult--add-history nil add-history))))
+    (car (consult--with-preview
+             preview-key state
+             (lambda (_narrow inp _cand) (funcall transform inp))
+             (lambda () "")
+           (read-from-minibuffer prompt initial nil nil history default inherit-input-method)))))
+
+(cl-defun consult--prompt (&rest options &key prompt history add-history initial default
+                                 keymap state preview-key transform inherit-input-method)
+  "Read from minibuffer.
+
+Keyword OPTIONS:
+
+PROMPT is the string to prompt with.
+TRANSFORM is a function which is applied to the current input string.
+HISTORY is the symbol of the history variable.
+INITIAL is initial input.
+DEFAULT is the default selected value.
+ADD-HISTORY is a list of items to add to the history.
+STATE is the state function, see `consult--with-preview'.
+PREVIEW-KEY are the preview keys (nil, `any', a single key or a list of keys).
+KEYMAP is a command-specific keymap."
+  (ignore prompt history add-history initial default
+          keymap state preview-key transform inherit-input-method)
+  (apply #'consult--prompt-1
+         (append
+          (consult--customize-get)
+          options
+          (list :prompt "Input: "
+                :preview-key consult-preview-key
+                :transform #'identity))))
+
 ;;;; Internal API: consult--multi
 
 (defsubst consult--multi-source (sources cand)
@@ -2561,14 +2622,14 @@ input method."
     (delq nil)
     (delete-dups)))
 
-(defun consult--multi-annotate (sources align cand)
-  "Annotate candidate CAND with `consult--multi' type, given SOURCES and ALIGN."
-  (let* ((src (consult--multi-source sources cand))
-         (annotate (plist-get src :annotate))
-         (ann (if annotate
-                  (funcall annotate (cdr (get-text-property 0 'multi-category cand)))
-                (plist-get src :name))))
-    (and ann (concat align ann))))
+(defun consult--multi-annotate (sources cand)
+  "Annotate candidate CAND from multi SOURCES."
+  (consult--annotate-align
+   cand
+   (let ((src (consult--multi-source sources cand)))
+     (if-let ((fun (plist-get src :annotate)))
+         (funcall fun (cdr (get-text-property 0 'multi-category cand)))
+       (plist-get src :name)))))
 
 (defun consult--multi-group (sources cand transform)
   "Return title of candidate CAND or TRANSFORM the candidate given SOURCES."
@@ -2618,25 +2679,23 @@ input method."
 
 (defun consult--multi-candidates (sources)
   "Return `consult--multi' candidates from SOURCES."
-  (let ((idx 0) (max-width 0) (candidates))
+  (let ((idx 0) candidates)
     (seq-doseq (src sources)
       (let* ((face (and (plist-member src :face) `(face ,(plist-get src :face))))
              (cat (plist-get src :category))
              (items (plist-get src :items))
              (items (if (functionp items) (funcall items) items)))
         (dolist (item items)
-          (let ((cand (consult--tofu-append item idx))
-                (width (consult--display-width item)))
+          (let ((cand (consult--tofu-append item idx)))
             ;; Preserve existing `multi-category' datum of the candidate.
             (if (get-text-property 0 'multi-category cand)
                 (when face (add-text-properties 0 (length item) face cand))
               ;; Attach `multi-category' datum and face.
               (add-text-properties 0 (length item)
                                    `(multi-category (,cat . ,item) ,@face) cand))
-            (when (> width max-width) (setq max-width width))
             (push cand candidates))))
       (cl-incf idx))
-    (cons (+ 3 max-width) (nreverse candidates))))
+    (nreverse candidates)))
 
 (defun consult--multi-enabled-sources (sources)
   "Return vector of enabled SOURCES."
@@ -2703,7 +2762,7 @@ Required source fields:
 * :category - Completion category symbol.
 * :items - List of strings to select from or function returning
   list of strings.  Note that the strings can use text properties
-  to carry mtadata, which is then available to the :annotate,
+  to carry metadata, which is then available to the :annotate,
   :action and :state functions.
 
 Optional source fields:
@@ -2727,18 +2786,15 @@ Optional source fields:
   (let* ((sources (consult--multi-enabled-sources sources))
          (candidates (consult--with-increased-gc
                       (consult--multi-candidates sources)))
-         (align (propertize
-                 " " 'display
-                 `(space :align-to (+ left ,(car candidates)))))
          (selected
           (apply #'consult--read
-                 (cdr candidates)
+                 candidates
                  (append
                   options
                   (list
                    :category    'multi-category
                    :predicate   (apply-partially #'consult--multi-predicate sources)
-                   :annotate    (apply-partially #'consult--multi-annotate sources align)
+                   :annotate    (apply-partially #'consult--multi-annotate sources)
                    :group       (apply-partially #'consult--multi-group sources)
                    :lookup      (apply-partially #'consult--multi-lookup sources)
                    :preview-key (consult--multi-preview-key sources)
@@ -2754,47 +2810,6 @@ Optional source fields:
         (funcall fun (car selected)))
       (setq selected `(,(car selected) :match t ,@(cdr selected))))
     selected))
-
-;;;; Internal API: consult--prompt
-
-(cl-defun consult--prompt-1 (&key prompt history add-history initial default
-                                  keymap state preview-key transform inherit-input-method)
-  "See `consult--prompt' for documentation."
-  (consult--minibuffer-with-setup-hook
-      (:append (lambda ()
-                 (consult--setup-keymap keymap nil nil preview-key)
-                 (setq-local minibuffer-default-add-function
-                             (apply-partially #'consult--add-history nil add-history))))
-    (car (consult--with-preview
-             preview-key state
-             (lambda (_narrow inp _cand) (funcall transform inp))
-             (lambda () "")
-           (read-from-minibuffer prompt initial nil nil history default inherit-input-method)))))
-
-(cl-defun consult--prompt (&rest options &key prompt history add-history initial default
-                                 keymap state preview-key transform inherit-input-method)
-  "Read from minibuffer.
-
-Keyword OPTIONS:
-
-PROMPT is the string to prompt with.
-TRANSFORM is a function which is applied to the current input string.
-HISTORY is the symbol of the history variable.
-INITIAL is initial input.
-DEFAULT is the default selected value.
-ADD-HISTORY is a list of items to add to the history.
-STATE is the state function, see `consult--with-preview'.
-PREVIEW-KEY are the preview keys (nil, `any', a single key or a list of keys).
-KEYMAP is a command-specific keymap."
-  (ignore prompt history add-history initial default
-          keymap state preview-key transform inherit-input-method)
-  (apply #'consult--prompt-1
-         (append
-          (consult--customize-get)
-          options
-          (list :prompt "Input: "
-                :preview-key consult-preview-key
-                :transform #'identity))))
 
 ;;;; Customization macro
 
@@ -2857,9 +2872,9 @@ of functions and in `consult-completion-in-region'."
           (setq ov nil))
          ((and (eq action 'preview) cand)
           (unless ov
-            (setq ov (consult--overlay start end
-                                       'invisible t
-                                       'window (selected-window))))
+            (setq ov (consult--make-overlay start end
+                                            'invisible t
+                                            'window (selected-window))))
           ;; Use `add-face-text-property' on a copy of "cand in order to merge face properties
           (setq cand (copy-sequence cand))
           (add-face-text-property 0 (length cand) 'consult-preview-insertion t cand)
@@ -3508,7 +3523,7 @@ INITIAL is the initial input."
                              (let ((a (if not block-beg block-end))
                                    (b (if not block-end beg)))
                                (when (/= a b)
-                                 (push (consult--overlay a b 'invisible t) new-overlays)))
+                                 (push (consult--make-overlay a b 'invisible t) new-overlays)))
                              (setq block-beg beg))
                            (setq block-end end old-ind ind)))))
                    'commit)
@@ -3985,8 +4000,6 @@ history is used."
         (unless found
           (user-error "No history configured for `%s', see `consult-mode-histories'"
                       major-mode))
-        (unless (consp (cdr found))
-          (user-error "Obsolete mode history entry: %S" found))
         (cons (symbol-value (cadr found)) (cddr found))))))
 
 ;;;###autoload
@@ -4063,27 +4076,23 @@ of the prompt.  See also `cape-history' from the Cape package."
   (let ((history (if (eq t search-default-mode)
                      (append regexp-search-ring search-ring)
                    (append search-ring regexp-search-ring))))
-    (cons
-     (delete-dups
-      (mapcar
-       (lambda (cand)
-         ;; The search type can be distinguished via text properties.
-         (let* ((props (plist-member (text-properties-at 0 cand)
-                                     'isearch-regexp-function))
-                (type (pcase (cadr props)
-                        ((and 'nil (guard (not props))) ?r)
-                        ('nil                           ?l)
-                        ('word-search-regexp            ?w)
-                        ('isearch-symbol-regexp         ?s)
-                        ('char-fold-to-regexp           ?c)
-                        (_                              ?u))))
-           ;; Disambiguate history items.  The same string could
-           ;; occur with different search types.
-           (consult--tofu-append cand type)))
-       history))
-     (if history
-         (+ 4 (apply #'max (mapcar #'length history)))
-       0))))
+    (delete-dups
+     (mapcar
+      (lambda (cand)
+        ;; The search type can be distinguished via text properties.
+        (let* ((props (plist-member (text-properties-at 0 cand)
+                                    'isearch-regexp-function))
+               (type (pcase (cadr props)
+                       ((and 'nil (guard (not props))) ?r)
+                       ('nil                           ?l)
+                       ('word-search-regexp            ?w)
+                       ('isearch-symbol-regexp         ?s)
+                       ('char-fold-to-regexp           ?c)
+                       (_                              ?u))))
+          ;; Disambiguate history items.  The same string could
+          ;; occur with different search types.
+          (consult--tofu-append cand type)))
+      history))))
 
 (defconst consult--isearch-history-narrow
   '((?c . "Char")
@@ -4103,13 +4112,12 @@ starts a new Isearch session otherwise."
   (consult--forbid-minibuffer)
   (let* ((isearch-message-function 'ignore) ;; Avoid flicker in echo area
          (inhibit-redisplay t)              ;; Avoid flicker in mode line
-         (candidates (consult--isearch-history-candidates))
-         (align (propertize " " 'display `(space :align-to (+ left ,(cdr candidates))))))
+         (candidates (consult--isearch-history-candidates)))
     (unless isearch-mode (isearch-mode t))
     (with-isearch-suspended
      (setq isearch-new-string
            (consult--read
-            (car candidates)
+            candidates
             :prompt "I-search: "
             :category 'consult-isearch
             :history t ;; disable history
@@ -4118,7 +4126,9 @@ starts a new Isearch session otherwise."
             :keymap consult-isearch-history-map
             :annotate
             (lambda (cand)
-              (concat align (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
+              (consult--annotate-align
+               cand
+               (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
             :group
             (lambda (cand transform)
               (if transform
@@ -5021,7 +5031,5 @@ automatically previewed."
 (with-eval-after-load 'vertico (require 'consult-vertico))
 (with-eval-after-load 'mct (add-hook 'consult--completion-refresh-hook
                                      'mct--live-completions-refresh))
-(with-eval-after-load 'selectrum
-  (warn (propertize "Consult: Selectrum has been deprecated in favor of Vertico" 'face 'warning)))
 
 ;;; consult.el ends here
