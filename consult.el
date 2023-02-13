@@ -613,11 +613,11 @@ This macro is only needed to prevent memory leaking issues with
 the upstream `minibuffer-with-setup-hook' macro.
 FUN is the hook function and BODY opens the minibuffer."
   (declare (indent 1) (debug t))
-  (let ((hook (make-symbol "hook"))
+  (let ((hook (gensym "hook"))
         (append))
     (when (eq (car-safe fun) :append)
       (setq append '(t) fun (cadr fun)))
-    `(let ((,hook (make-symbol "consult--minibuffer-setup")))
+    `(let ((,hook (make-symbol "consult--minibuffer-setup-hook")))
        (fset ,hook (lambda ()
                      (remove-hook 'minibuffer-setup-hook ,hook)
                      (funcall ,fun)))
@@ -697,8 +697,8 @@ The line beginning/ending BEG/END is bound in BODY."
 (defmacro consult--local-let (binds &rest body)
   "Buffer local let BINDS of dynamic variables in BODY."
   (declare (indent 1))
-  (let ((buffer (make-symbol "buffer"))
-        (local (mapcar (lambda (x) (cons (make-symbol "local") (car x))) binds)))
+  (let ((buffer (gensym "buffer"))
+        (local (mapcar (lambda (x) (cons (gensym "local") (car x))) binds)))
     `(let ((,buffer (current-buffer))
            ,@(mapcar (lambda (x) `(,(car x) (local-variable-p ',(cdr x)))) local))
        (unwind-protect
@@ -778,17 +778,14 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
       (propertize (match-string 1 dir) 'help-echo (abbreviate-file-name dir))
     dir))
 
-(defun consult--format-file-line-match (file line &optional match)
+(defun consult--format-file-line-match (file line match)
   "Format string FILE:LINE:MATCH with faces."
   (setq line (number-to-string line)
-        match (concat file ":" line (and match ":") match)
+        match (concat file ":" line ":" match)
         file (length file))
   (put-text-property 0 file 'face 'consult-file match)
   (put-text-property (1+ file) (+ 1 file (length line)) 'face 'consult-line-number match)
   match)
-
-(define-obsolete-function-alias
-  'consult--format-location 'consult--format-file-line-match "0.31")
 
 (defun consult--make-overlay (beg end &rest props)
   "Make consult overlay between BEG and END with PROPS."
@@ -1253,7 +1250,7 @@ ORIG is the original function, HOOKS the arguments."
 (defun consult--temporary-files ()
   "Return a function to open files temporarily for preview."
   (let ((dir default-directory)
-        (hook (make-symbol "consult--temporary-files-window-selection-change"))
+        (hook (make-symbol "consult--temporary-files-upgrade-hook"))
         (orig-buffers (buffer-list))
         temporary-buffers)
     (fset hook
@@ -1317,7 +1314,7 @@ ORIG is the original function, HOOKS the arguments."
                  ;; like `pdf-view-mode' or `doc-view-mode' which rely on
                  ;; `buffer-file-name'.  Executing (set-visited-file-name nil)
                  ;; early also prevents the major mode initialization.
-                 (let ((hook (make-symbol "consult--temporary-files-disassociate")))
+                 (let ((hook (make-symbol "consult--temporary-files-disassociate-hook")))
                    (fset hook (lambda ()
                                 (when (buffer-live-p buf)
                                   (with-current-buffer buf
@@ -1365,20 +1362,23 @@ See `isearch-open-necessary-overlays' and `isearch-open-overlay-temporary'."
                 (delq nil (org-fold-core-get-regions
                            :with-markers t :from (point-min) :to (point-max))))
           (when consult--org-fold-regions
-            (let ((hook (make-symbol "consult--invisible-open-temporarily-cleanup")))
-              (fset hook (apply-partially
-                          #'run-at-time 0 nil
-                          (lambda (buffer)
-                            (when (buffer-live-p buffer)
-                              (with-current-buffer buffer
-                                (pcase-dolist (`(,beg ,end ,_) consult--org-fold-regions)
-                                  (when (markerp beg) (set-marker beg nil))
-                                  (when (markerp end) (set-marker end nil)))
-                                (kill-local-variable 'consult--org-fold-regions))))
-                          (current-buffer)))
-              (when-let (win (active-minibuffer-window))
-                (with-current-buffer (window-buffer win)
-                  (add-hook 'minibuffer-exit-hook hook nil 'local))))))
+            (let ((hook (make-symbol "consult--invisible-open-temporarily-cleanup-hook"))
+                  (buffer (current-buffer))
+                  (depth (recursion-depth)))
+              (fset hook
+                    (lambda ()
+                      (when (= (recursion-depth) depth)
+                        (remove-hook 'minibuffer-exit-hook hook)
+                        (run-at-time
+                         0 nil
+                         (lambda ()
+                           (when (buffer-live-p buffer)
+                             (with-current-buffer buffer
+                               (pcase-dolist (`(,beg ,end ,_) consult--org-fold-regions)
+                                 (when (markerp beg) (set-marker beg nil))
+                                 (when (markerp end) (set-marker end nil)))
+                               (kill-local-variable 'consult--org-fold-regions))))))))
+              (add-hook 'minibuffer-exit-hook hook))))
         (org-fold-show-set-visibility 'canonical)
         (list (lambda ()
                 (pcase-dolist (`(,beg ,end ,spec) consult--org-fold-regions)
@@ -1492,7 +1492,7 @@ The function can be used as the `:state' argument of `consult--read'."
 The cheap location markers from CANDIDATES are upgraded on window
 selection change to full Emacs markers."
   (let ((jump (consult--jump-state))
-        (hook (make-symbol "consult--location-upgrade")))
+        (hook (make-symbol "consult--location-upgrade-hook")))
     (fset hook
           (lambda (_)
             (unless (consult--completion-window-p)
@@ -1553,14 +1553,14 @@ The result can be passed as :state argument to `consult--read'." type)
     (setq keys (lookup-key map keys))
     (if (functionp keys) (funcall keys) any)))
 
-(defun consult--append-local-post-command-hook (fun)
+(defun consult--preview-append-local-pch (fun)
   "Append FUN to local `post-command-hook' list."
   ;; Symbol indirection because of bug#46407.
-  (let ((hook (make-symbol "consult--preview-post-command")))
+  (let ((hook (make-symbol "consult--preview-post-command-hook")))
     (fset hook fun)
     ;; TODO Emacs 28 has a bug, where the hook--depth-alist is not cleaned up properly
     ;; Do not use the broken add-hook here.
-    ;;(add-hook 'post-command-hook sym 'append 'local)
+    ;;(add-hook 'post-command-hook hook 'append 'local)
     (setq-local post-command-hook
                 (append
                  (remove t post-command-hook)
@@ -1575,12 +1575,12 @@ PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
     (consult--minibuffer-with-setup-hook
         (if (and state preview-key)
             (lambda ()
-              (let ((exit-hook (make-symbol "consult--preview-minibuffer-exit"))
+              (let ((hook (make-symbol "consult--preview-minibuffer-exit-hook"))
                     (depth (recursion-depth)))
-                (fset exit-hook
+                (fset hook
                       (lambda ()
                         (when (= (recursion-depth) depth)
-                          (remove-hook 'minibuffer-exit-hook exit-hook)
+                          (remove-hook 'minibuffer-exit-hook hook)
                           (when timer
                             (cancel-timer timer)
                             (setq timer nil))
@@ -1590,7 +1590,7 @@ PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
                               (funcall state 'preview nil))
                             ;; STEP 4: Notify the preview function of the minibuffer exit
                             (funcall state 'exit nil)))))
-                (add-hook 'minibuffer-exit-hook exit-hook))
+                (add-hook 'minibuffer-exit-hook hook))
               ;; STEP 1: Setup the preview function
               (with-selected-window (or (minibuffer-selected-window) (next-window))
                 (funcall state 'setup nil))
@@ -1642,13 +1642,13 @@ PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
                                                      (funcall state 'preview (setq previewed transformed))))))))
                                     ;; STEP 2: Preview candidate
                                     (funcall state 'preview (setq previewed transformed)))))))))))
-              (consult--append-local-post-command-hook
+              (consult--preview-append-local-pch
                (lambda ()
                  (setq mb-input (minibuffer-contents-no-properties)
                        mb-narrow consult--narrow)
                  (funcall consult--preview-function))))
           (lambda ()
-            (consult--append-local-post-command-hook
+            (consult--preview-append-local-pch
              (lambda ()
                (setq mb-input (minibuffer-contents-no-properties)
                      mb-narrow consult--narrow)))))
@@ -1931,13 +1931,13 @@ BIND is the asynchronous function binding."
                        ;; We use a symbol in order to avoid adding lambdas to
                        ;; the hook variable.  Symbol indirection because of
                        ;; bug#46407.
-                       (sym (make-symbol "consult--async-after-change")))
+                       (hook (make-symbol "consult--async-after-change-hook")))
                   ;; Delay modification hook to ensure that minibuffer is still
                   ;; alive after the change, such that we don't restart a new
                   ;; asynchronous search right before exiting the minibuffer.
-                  (fset sym (lambda (&rest _) (run-at-time 0 nil fun)))
-                  (add-hook 'after-change-functions sym nil 'local)
-                  (funcall sym)))))
+                  (fset hook (lambda (&rest _) (run-at-time 0 nil fun)))
+                  (add-hook 'after-change-functions hook nil 'local)
+                  (funcall hook)))))
          (let ((,async (if (functionp ,async) ,async (lambda (_) ,async))))
            (unwind-protect
                ,(macroexp-progn body)
