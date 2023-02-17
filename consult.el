@@ -6,7 +6,7 @@
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
 ;; Version: 0.32
-;; Package-Requires: ((emacs "27.1") (compat "29.1.3.3"))
+;; Package-Requires: ((emacs "27.1") (compat "29.1.3.4"))
 ;; Homepage: https://github.com/minad/consult
 
 ;; This file is part of GNU Emacs.
@@ -864,8 +864,8 @@ Also temporarily increase the gc limit via `consult--with-increased-gc'."
   "Get marker in BUFFER from LINE and COLUMN."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (save-restriction
-        (save-excursion
+      (save-excursion
+        (save-restriction
           (widen)
           (goto-char (point-min))
           ;; Location data might be invalid by now!
