@@ -245,24 +245,25 @@ their descriptions.
   term. After at least =consult-async-min-input= characters, the search gets
   started. Consult splits the input string into two parts, if the first
   character is a punctuation character, like =#=. For example
-  =#regexps#filter-string=, is split at the second =#=. The string =regexps= is
-  passed to Grep. Note that Consult transforms Emacs regular expressions to
-  expressions understand by the search program. Always use Emacs regular
-  expressions at the prompt. If you enter multiple regular expressions
-  separated by space only lines matching all regular expressions are shown. In
-  order to match space literally, escape the space with a backslash. The
-  =filter-string= is passed to the /fast/ Emacs filtering to further narrow down
-  the list of matches. This is particularly useful if you are using an advanced
-  completion style like orderless. =consult-grep= supports preview. If the
-  =consult-project-function= returns non-nil, =consult-grep= searches the
-  current project directory. Otherwise the =default-directory= is searched. If
-  =consult-grep= is invoked with prefix argument =C-u M-s g=, you can specify the
-  directory manually.
+  =#regexps#filter-string=, is split at the second =#=. The string =regexps= is passed
+  to Grep. Note that Consult transforms Emacs regular expressions to expressions
+  understand by the search program. Always use Emacs regular expressions at the
+  prompt. If you enter multiple regular expressions separated by space only
+  lines matching all regular expressions are shown. In order to match space
+  literally, escape the space with a backslash. The =filter-string= is passed to
+  the /fast/ Emacs filtering to further narrow down the list of matches. This is
+  particularly useful if you are using an advanced completion style like
+  orderless. =consult-grep= supports preview. If the =consult-project-function=
+  returns non-nil, =consult-grep= searches the current project directory.
+  Otherwise the =default-directory= is searched. If =consult-grep= is invoked with
+  prefix argument =C-u M-s g=, you can specify one or multiple files or
+  directories manually. Multiple file names must be separated by comma.
 - =consult-find=, =consult-locate=: Find file by matching the path against a regexp.
   Like for =consult-grep=, either the project root or the current directory is the
   root directory for the search. The input string is treated similarly to
   =consult-grep=, where the first part is passed to find, and the second part is
-  used for Emacs filtering.
+  used for Emacs filtering.  Prefix arguments to =consult-find= work just like those
+  for the consult grep commands.
 
 ** Compilation
 :properties:
@@ -1196,6 +1197,7 @@ Code contributions:
 - [[https://github.com/aagon][Aymeric Agon-Rambosson]]
 - [[https://github.com/geolessel][Geoffrey Lessel]]
 - [[https://github.com/piotrkwiecinski][Piotr Kwiecinski]]
+- [[https://github.com/rswgnu][Robert Weiner]]
 
 Advice and useful discussions:
 - [[https://github.com/clemera/][Clemens Radermacher]]
