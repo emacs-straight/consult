@@ -548,6 +548,12 @@ We use invalid characters outside the Unicode range.")
 
 ;;;; Miscellaneous helper functions
 
+(defun consult--key-parse (key)
+  "Parse KEY or signal error if invalid."
+  (unless (key-valid-p key)
+    (error "%S is not a valid key definition; see `key-valid-p'" key))
+  (key-parse key))
+
 (defun consult--in-buffer (fun &optional buffer)
   "Ensure that FUN is executed inside BUFFER."
   (unless buffer (setq buffer (current-buffer)))
@@ -577,11 +583,11 @@ We use invalid characters outside the Unicode range.")
 Turn ARG into a list, and for each element either:
 - split it if it a string.
 - eval it if it is an expression."
-  (mapcan (lambda (x)
-            (if (stringp x)
-                (split-string-and-unquote x)
-              (ensure-list (eval x 'lexical))))
-          (ensure-list arg)))
+  (seq-mapcat (lambda (x)
+                (if (stringp x)
+                    (split-string-and-unquote x)
+                  (ensure-list (eval x 'lexical))))
+              (ensure-list arg)))
 
 (defun consult--command-split (str)
   "Return command argument and options list given input STR."
@@ -733,7 +739,7 @@ prompt prefix.  For projects only the project name is shown.  The
 abbreviated and only the last two path components are shown.
 
 If DIR is a string, it is returned as default directory.  If DIR
-is a list of strings, the list is returned as search paths. If
+is a list of strings, the list is returned as search paths.  If
 DIR is nil the `consult-project-function' is tried to retrieve
 the default directory.  If no project is found the
 `default-directory' is returned as is.  Otherwise the user is
@@ -749,10 +755,11 @@ asked for the directories or files to search via
                           dir
                         ;; Preserve this-command across `completing-read-multiple' call,
                         ;; such that `consult-customize' continues to work.
-                        (let ((this-command this-command))
+                        (let ((this-command this-command)
+                              (def (abbreviate-file-name default-directory)))
                           (completing-read-multiple "Directories or files: "
                                                     #'completion-file-name-table
-                                                    nil t nil 'consult--path-history)))
+                                                    nil t def 'consult--path-history def)))
                  ((and `(,p) (guard (file-directory-p p))) p)
                  (ps (setq paths (mapcar (lambda (p)
                                            (file-relative-name (expand-file-name p)))
@@ -1550,10 +1557,7 @@ The result can be passed as :state argument to `consult--read'." type)
                 preview-key (cddr preview-key))
         (let ((key (car preview-key)))
           (unless (eq key 'any)
-            (if (key-valid-p key)
-                (setq key (key-parse key))
-              ;; TODO: Remove compatibility code, throw error.
-              (message "Invalid preview key according to `key-valid-p': %S" key)))
+            (setq key (consult--key-parse key)))
           (push (cons key debounce) keys))
         (pop preview-key)))
     keys))
@@ -1750,17 +1754,9 @@ The candidate must have a `consult--prefix-group' property."
 The default is twice the `consult-narrow-key'."
   (cond
    (consult-widen-key
-    (if (key-valid-p consult-widen-key)
-        (key-parse consult-widen-key)
-      ;; TODO: Remove compatibility code, throw error.
-      (message "Invalid `consult-widen-key' according to `key-valid-p': %S" consult-widen-key)
-      consult-widen-key))
+    (consult--key-parse consult-widen-key))
    (consult-narrow-key
-    (let ((key consult-narrow-key))
-      (if (key-valid-p key)
-          (setq key (key-parse key))
-        ;; TODO: Remove compatibility code, throw error.
-        (message "Invalid `consult-narrow-key' according to `key-valid-p': %S" key))
+    (let ((key (consult--key-parse consult-narrow-key)))
       (vconcat key key)))))
 
 (defun consult-narrow (key)
@@ -1803,7 +1799,7 @@ This command is used internally by the narrowing system of `consult--read'."
          (when-let (pair (or (and (length= str 1)
                                   (assoc (aref str 0) consult--narrow-keys))
                              (and (equal str "")
-                                  (assoc 32 consult--narrow-keys))))
+                                  (assoc ?\s consult--narrow-keys))))
            (lambda ()
              (interactive)
              (delete-minibuffer-contents)
@@ -1834,10 +1830,7 @@ to make it available for commands with narrowing."
     (setq consult--narrow-predicate nil
           consult--narrow-keys settings))
   (when-let ((key consult-narrow-key))
-    (if (key-valid-p key)
-        (setq key (key-parse key))
-      ;; TODO: Remove compatibility code, throw error.
-      (message "Invalid `consult-narrow-key' according to `key-valid-p': %S" key))
+    (setq key (consult--key-parse key))
     (dolist (pair consult--narrow-keys)
       (define-key map (vconcat key (vector (car pair)))
                   (cons (cdr pair) #'consult-narrow))))
@@ -4470,7 +4463,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
 
 (defvar consult--source-hidden-buffer
   `(:name     "Hidden Buffer"
-    :narrow   32
+    :narrow   ?\s
     :hidden   t
     :category buffer
     :face     consult-buffer
@@ -4883,9 +4876,9 @@ INITIAL is inital input."
 
 (defun consult--find-make-builder (paths)
   "Build find command line, finding across PATHS."
-  (let* ((cmd (mapcan (lambda (x)
-                        (if (equal x ".") paths (list x)))
-                      (consult--build-args consult-find-args)))
+  (let* ((cmd (seq-mapcat (lambda (x)
+                            (if (equal x ".") paths (list x)))
+                          (consult--build-args consult-find-args)))
          (type (if (eq 0 (call-process-shell-command
                           (concat (car cmd) " -regextype emacs -version")))
                    'emacs 'basic)))
