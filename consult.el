@@ -1181,20 +1181,18 @@ matches case insensitively."
       (message "Too many regexps, %S ignored. Use post-filtering!"
                (string-join (seq-drop regexps 3) " "))
       (setq regexps (seq-take regexps 3)))
-    (consult--regexp-join-permutations regexps
-                                       (and (memq type '(basic emacs)) "\\")))))
+    (consult--join-regexps-permutations regexps (and (eq type 'emacs) "\\")))))
 
-(defun consult--regexp-join-permutations (regexps esc)
+(defun consult--join-regexps-permutations (regexps esc)
   "Join all permutations of REGEXPS.
 ESC is the escaping string for choice and groups."
   (pcase regexps
     ('nil "")
     (`(,r) r)
-    (`(,r1 ,r2) (concat r1 ".*" r2 esc "|" r2 ".*" r1))
     (_ (mapconcat
         (lambda (r)
-          (concat r ".*" esc "("
-                  (consult--regexp-join-permutations (remove r regexps) esc)
+          (concat esc "(" r esc ").*" esc "("
+                  (consult--join-regexps-permutations (remove r regexps) esc)
                   esc ")"))
         regexps (concat esc "|")))))
 
@@ -4970,10 +4968,10 @@ details regarding the asynchronous search."
 (defun consult--man-builder (input)
   "Build command line from INPUT."
   (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
-               (`(,re . ,hl) (funcall consult--regexp-compiler arg 'basic t)))
+               (`(,re . ,hl) (funcall consult--regexp-compiler arg 'extended t)))
     (when re
       (cons (append (consult--build-args consult-man-args)
-                    (list (consult--join-regexps re 'basic))
+                    (list (consult--join-regexps re 'extended))
                     opts)
             hl))))
 
