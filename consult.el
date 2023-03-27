@@ -6,7 +6,7 @@
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
 ;; Version: 0.33
-;; Package-Requires: ((emacs "27.1") (compat "29.1.4.0"))
+;; Package-Requires: ((emacs "27.1") (compat "29.1.4.1"))
 ;; Homepage: https://github.com/minad/consult
 
 ;; This file is part of GNU Emacs.
@@ -217,14 +217,16 @@ character, the *Completions* buffer and a few log buffers."
     consult--source-recent-file
     consult--source-file-register
     consult--source-bookmark
-    consult--source-project-buffer
-    consult--source-project-recent-file)
+    consult--source-project-buffer-hidden
+    consult--source-project-recent-file-hidden)
   "Sources used by `consult-buffer'.
 See also `consult-project-buffer-sources'.
 See `consult--multi' for a description of the source data structure."
   :type '(repeat symbol))
 
-(defcustom consult-project-buffer-sources nil
+(defcustom consult-project-buffer-sources
+  '(consult--source-project-buffer
+    consult--source-project-recent-file)
   "Sources used by `consult-project-buffer'.
 See also `consult-buffer-sources'.
 See `consult--multi' for a description of the source data structure."
@@ -529,10 +531,10 @@ We use invalid characters outside the Unicode range.")
   "Narrowing indicator overlay.")
 
 (defvar consult--gc-threshold (* 64 1024 1024)
-  "Large gc threshold for temporary increase.")
+  "Large GC threshold for temporary increase.")
 
 (defvar consult--gc-percentage 0.5
-  "Large gc percentage for temporary increase.")
+  "Large GC percentage for temporary increase.")
 
 (defvar consult--process-chunk (* 1024 1024)
   "Increase process output chunk size.")
@@ -722,21 +724,6 @@ The line beginning/ending BEG/END is bound in BODY."
                             (kill-local-variable ',(cdr x))))
                        local)))))))
 
-;; TODO remove these functions if Compat 29.1.4.1 is released
-(defun consult---directory-abbrev-make-regexp (directory)
-  (let ((regexp (concat "\\`" (regexp-quote directory) "\\(/\\|\\'\\)")))
-    (if (multibyte-string-p regexp)
-        regexp
-      (decode-coding-string regexp
-                            (if (eq system-type 'windows-nt)
-                                'utf-8
-                              locale-coding-system)))))
-(defun consult---directory-abbrev-apply (filename)
-  (dolist (dir-abbrev directory-abbrev-alist filename)
-    (when (string-match (car dir-abbrev) filename)
-         (setq filename (concat (cdr dir-abbrev)
-                                (substring filename (match-end 0)))))))
-
 (defvar consult--fast-abbreviate-file-name nil)
 (defun consult--fast-abbreviate-file-name (name)
   "Return abbreviate file NAME.
@@ -746,9 +733,9 @@ that the operation is fast, even for remote paths or paths on
 network file systems."
   (save-match-data
     (let (case-fold-search) ;; Assume that file system is case sensitive.
-      (setq name (consult---directory-abbrev-apply name))
+      (setq name (directory-abbrev-apply name))
       (if (string-match (with-memoization consult--fast-abbreviate-file-name
-                          (consult---directory-abbrev-make-regexp (expand-file-name "~")))
+                          (directory-abbrev-make-regexp (expand-file-name "~")))
                         name)
           (concat "~" (substring name (match-beginning 1)))
         name))))
@@ -893,7 +880,7 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
     (jit-lock-fontify-now start end)))
 
 (defmacro consult--with-increased-gc (&rest body)
-  "Temporarily increase the gc limit in BODY to optimize for throughput."
+  "Temporarily increase the GC limit in BODY to optimize for throughput."
   (cl-with-gensyms (overwrite)
     `(let* ((,overwrite (> consult--gc-threshold gc-cons-threshold))
             (gc-cons-threshold (if ,overwrite consult--gc-threshold gc-cons-threshold))
@@ -902,7 +889,7 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
 
 (defmacro consult--slow-operation (message &rest body)
   "Show delayed MESSAGE if BODY takes too long.
-Also temporarily increase the gc limit via `consult--with-increased-gc'."
+Also temporarily increase the GC limit via `consult--with-increased-gc'."
   (declare (indent 1))
   `(with-delayed-message (1 ,message)
      (consult--with-increased-gc
@@ -1029,8 +1016,8 @@ See `consult--tofu-append'."
 ;; We must disambiguate the lines by adding a prefix such that two lines with
 ;; the same text can be distinguished.  In order to avoid matching the line
 ;; number, such that the user can search for numbers with `consult-line', we
-;; encode the line number as characters outside the unicode range.  By doing
-;; that, no accidential matching can occur.
+;; encode the line number as characters outside the Unicode range.  By doing
+;; that, no accidental matching can occur.
 (defun consult--tofu-encode (n)
   "Return tofu-encoded number N as a string.
 Large numbers are encoded as multiple tofu characters."
@@ -1170,7 +1157,7 @@ matches case insensitively."
 
 (defun consult--join-regexps (regexps type)
   "Join REGEXPS of TYPE."
-  ;; Add lookahead wrapper only if there is more than one regular expression
+  ;; Add look-ahead wrapper only if there is more than one regular expression
   (cond
    ((and (eq type 'pcre) (cdr regexps))
     (concat "^" (mapconcat (lambda (x) (format "(?=.*%s)" x))
@@ -1220,7 +1207,7 @@ ESC is the escaping string for choice and groups."
   (assoc selected candidates))
 
 (defun consult--lookup-cdr (selected candidates &rest _)
-  "Lookup SELECTED in CANDIDATES alist, return cdr of element."
+  "Lookup SELECTED in CANDIDATES alist, return `cdr' of element."
   (cdr (assoc selected candidates)))
 
 (defun consult--lookup-location (selected candidates &rest _)
@@ -2205,7 +2192,7 @@ PROPS are optional properties passed to `make-process'."
         (_ (funcall async action))))))
 
 (defun consult--async-highlight (async builder)
-  "Return ASYNC function which highlightes the candidates.
+  "Return ASYNC function which highlights the candidates.
 BUILDER is the command line builder function."
   (let (highlight)
     (lambda (action)
@@ -2500,7 +2487,7 @@ PREVIEW-KEY are the preview keys."
       ;; in the interpreter.  This will make closures and the lambda string
       ;; representation larger, which makes debugging much worse.  Fortunately
       ;; the overcapturing problem does not affect the bytecode interpreter
-      ;; which does a proper scope analyis.
+      ;; which does a proper scope analysis.
       (let* ((metadata `(metadata
                          ,@(when category `((category . ,category)))
                          ,@(when group `((group-function . ,group)))
@@ -3198,7 +3185,7 @@ The symbol at point is added to the future history."
    (consult--global-mark-candidates
     (or markers global-mark-ring))
    :prompt "Go to global mark: "
-   ;; Despite `consult-global-mark' formating the candidates in grep-like
+   ;; Despite `consult-global-mark' formatting the candidates in grep-like
    ;; style, we are not using the 'consult-grep category, since the candidates
    ;; have location markers attached.
    :category 'consult-location
@@ -3437,7 +3424,7 @@ to `consult--buffer-query'."
         ;; No undo recording, modification hooks, buffer modified-status
         (with-silent-modifications (funcall replace content-orig point-orig)))
       ;; Committing or new input provided -> Update
-      (when (and input ;; Input has been povided
+      (when (and input ;; Input has been provided
                  (or
                   ;; Committing, but not with empty input
                   (and (eq action 'return) (not (string-match-p "\\`!? ?\\'" input)))
@@ -3481,7 +3468,7 @@ to `consult--buffer-query'."
 The selected lines are kept and the other lines are deleted.  When called
 interactively, the lines selected are those that match the minibuffer input.  In
 order to match the inverse of the input, prefix the input with `! '.  When
-called from elisp, the filtering is performed by a FILTER function.  This
+called from Elisp, the filtering is performed by a FILTER function.  This
 command obeys narrowing.
 
 FILTER is the filter function.
@@ -3580,7 +3567,7 @@ INITIAL is the initial input."
           (consult-focus-lines 'show)
           (goto-char pt-orig))
          (t
-          ;; Sucessfully terminated -> Remember invisible overlays
+          ;; Successfully terminated -> Remember invisible overlays
           (setq consult--focus-lines-overlays
                 (nconc consult--focus-lines-overlays overlays))
           ;; move point past invisible
@@ -3598,7 +3585,7 @@ The selected lines are shown and the other lines hidden.  When called
 interactively, the lines selected are those that match the minibuffer input.  In
 order to match the inverse of the input, prefix the input with `! '.  With
 optional prefix argument SHOW reveal the hidden lines.  Alternatively the
-command can be restarted to reveal the lines.  When called from elisp, the
+command can be restarted to reveal the lines.  When called from Elisp, the
 filtering is performed by a FILTER function.  This command obeys narrowing.
 
 FILTER is the filter function.
@@ -4440,8 +4427,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
 
 (defvar consult--source-project-buffer
   `(:name     "Project Buffer"
-    :narrow   (?p . "Project")
-    :hidden   t
+    :narrow   ?b
     :category buffer
     :face     consult-buffer
     :history  buffer-name-history
@@ -4457,8 +4443,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
 
 (defvar consult--source-project-recent-file
   `(:name     "Project File"
-    :narrow   (?p . "Project")
-    :hidden   t
+    :narrow   ?f
     :category file
     :face     consult-file
     :history  file-name-history
@@ -4490,6 +4475,14 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
                  (put-text-property 0 1 'multi-category `(file . ,file) part)
                  (push part items))))))))
   "Project file candidate source for `consult-buffer'.")
+
+(defvar consult--source-project-buffer-hidden
+  `(:hidden t :narrow (?p . "Project") ,@consult--source-project-buffer)
+  "Like `consult--source-project-buffer' but hidden by default.")
+
+(defvar consult--source-project-recent-file-hidden
+  `(:hidden t :narrow (?p . "Project") ,@consult--source-project-recent-file)
+  "Like `consult--source-project-recent-file' but hidden by default.")
 
 (defvar consult--source-hidden-buffer
   `(:name     "Hidden Buffer"
@@ -4595,16 +4588,10 @@ configuration of the virtual buffer sources."
     (unless (plist-get (cdr selected) :match)
       (consult--buffer-action (car selected)))))
 
-;; Populate `consult-project-buffer-sources'.
-(setq consult-project-buffer-sources
-      (list
-       `(:hidden nil :narrow ?b ,@consult--source-project-buffer)
-       `(:hidden nil :narrow ?f ,@consult--source-project-recent-file)))
-
 (defmacro consult--with-project (&rest body)
   "Ensure that BODY is executed with a project root."
   ;; We have to work quite hard here to ensure that the project root is
-  ;; only overriden at the current recursion level.  When entering a
+  ;; only overridden at the current recursion level.  When entering a
   ;; recursive minibuffer session, we should be able to still switch the
   ;; project.  But who does that? Working on the first level on project A
   ;; and on the second level on project B and on the third level on project C?
@@ -4728,7 +4715,7 @@ Take the variables `grep-find-ignored-directories' and
 
 MAKE-BUILDER is the function that returns the command line
 builder function.  DIR is a directory or a list of file or
-directories.  PROMPT is the prompt string.  INITIAL is inital
+directories.  PROMPT is the prompt string.  INITIAL is initial
 input."
   (pcase-let* ((`(,prompt ,paths ,dir) (consult--directory-prompt prompt dir))
                (default-directory dir)
@@ -4749,7 +4736,7 @@ input."
      :sort nil)))
 
 (defun consult--grep-lookahead-p (&rest cmd)
-  "Return t if grep CMD supports lookahead."
+  "Return t if grep CMD supports look-ahead."
   (with-temp-buffer
     (insert "xaxbx")
     (eq 0 (apply #'call-process-region (point-min) (point-max)
@@ -4891,7 +4878,7 @@ The filename at point is added to the future history.
 
 BUILDER is the command line builder function.
 PROMPT is the prompt.
-INITIAL is inital input."
+INITIAL is initial input."
   (consult--read
    (consult--async-command builder
      (consult--async-map (lambda (x) (string-remove-prefix "./" x)))
