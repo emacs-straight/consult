@@ -1255,13 +1255,16 @@ ORIG is the original function, HOOKS the arguments."
                 name (file-size-human-readable size))
       (let ((buf (find-file-noselect name 'nowarn (>= size consult-preview-raw-size))))
         (cond
-         ((and (>= size consult-preview-raw-size)
-               (with-current-buffer buf
-                 (save-excursion
-                   (goto-char (point-min))
-                   (search-forward "\0" nil 'noerror))))
-          (kill-buffer buf)
-          (format "Binary file `%s' not previewed literally" name))
+         ((>= size consult-preview-raw-size)
+          (with-current-buffer buf
+            (if (save-excursion
+                  (goto-char (point-min))
+                  (search-forward "\0" nil 'noerror))
+                (progn
+                  (kill-buffer buf)
+                  (format "Binary file `%s' not previewed literally" name))
+              (set-buffer-multibyte t)
+              buf)))
          ((ignore-errors (buffer-local-value 'so-long-detected-p buf))
           (kill-buffer buf)
           (format "File `%s' with long lines not previewed" name))
@@ -1479,13 +1482,12 @@ The function can be used as the `:state' argument of `consult--read'."
   (let ((saved-min (point-min-marker))
         (saved-max (point-max-marker))
         (saved-pos (point-marker))
-        overlays invisible)
+        restore)
     (set-marker-insertion-type saved-max t) ;; Grow when text is inserted
     (lambda (action cand)
       (when (eq action 'preview)
-        (mapc #'funcall invisible)
-        (mapc #'delete-overlay overlays)
-        (setq invisible nil overlays nil)
+        (mapc #'funcall restore)
+        (setq restore nil)
         (if (not cand)
             ;; If position cannot be previewed, return to saved position
             (let ((saved-buffer (marker-buffer saved-pos)))
@@ -1494,29 +1496,43 @@ The function can be used as the `:state' argument of `consult--read'."
                 (set-buffer saved-buffer)
                 (narrow-to-region saved-min saved-max)
                 (goto-char saved-pos)))
-          ;; Handle positions with overlay information
+          ;; Candidate can be previewed
           (consult--jump-1 (or (car-safe cand) cand))
-          (setq invisible (consult--invisible-open-temporarily)
-                overlays
-                (list (save-excursion
-                        (let ((vbeg (progn (beginning-of-visual-line) (point)))
-                              (vend (progn (end-of-visual-line) (point)))
-                              (end (pos-eol)))
-                          (consult--make-overlay vbeg (if (= vend end) (1+ end) vend)
-                                                 'face 'consult-preview-line
-                                                 'window (selected-window)
-                                                 'priority 1)))
-                      (consult--make-overlay (point) (1+ (point))
-                                             'face 'consult-preview-cursor
-                                             'window (selected-window)
-                                             'priority 3)))
-          (dolist (match (cdr-safe cand))
-            (push (consult--make-overlay (+ (point) (car match))
-                                         (+ (point) (cdr match))
-                                         'face 'consult-preview-match
-                                         'window (selected-window)
-                                         'priority 2)
-                  overlays))
+          (setq restore (consult--invisible-open-temporarily))
+          ;; Ensure that cursor is properly previewed (gh:minad/consult#764)
+          (unless (eq cursor-in-non-selected-windows 'box)
+            (let ((orig cursor-in-non-selected-windows)
+                  (buf (current-buffer)))
+              (push
+               (if (local-variable-p 'cursor-in-non-selected-windows)
+                   (lambda ()
+                     (when (buffer-live-p buf)
+                       (with-current-buffer buf
+                         (setq-local cursor-in-non-selected-windows orig))))
+                 (lambda ()
+                   (when (buffer-live-p buf)
+                     (with-current-buffer buf
+                       (kill-local-variable 'cursor-in-non-selected-windows)))))
+               restore)
+              (setq-local cursor-in-non-selected-windows 'box)))
+          ;; Match previews
+          (let ((overlays
+                 (list (save-excursion
+                         (let ((vbeg (progn (beginning-of-visual-line) (point)))
+                               (vend (progn (end-of-visual-line) (point)))
+                               (end (pos-eol)))
+                           (consult--make-overlay vbeg (if (= vend end) (1+ end) vend)
+                                                  'face 'consult-preview-line
+                                                  'window (selected-window)
+                                                  'priority 1))))))
+            (dolist (match (cdr-safe cand))
+              (push (consult--make-overlay (+ (point) (car match))
+                                           (+ (point) (cdr match))
+                                           'face 'consult-preview-match
+                                           'window (selected-window)
+                                           'priority 2)
+                    overlays))
+            (push (lambda () (mapc #'delete-overlay overlays)) restore))
           (run-hooks 'consult-after-jump-hook))))))
 
 (defun consult--jump-state ()
