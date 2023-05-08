@@ -378,15 +378,17 @@ Each element of the list must have the form (char name handler)."
 (defface consult-highlight-match
   '((t :inherit match))
   "Face used to highlight matches in the completion candidates.
-Used for example in `consult-grep'.")
+Used for example by `consult-grep'.")
+
+(defface consult-highlight-mark
+  '((t :inherit consult-highlight-match))
+  "Face used for mark positions in completion candidates.
+Used for example by `consult-mark'.  The face should be different
+than the `cursor' face to avoid confusion.")
 
 (defface consult-preview-match
   '((t :inherit isearch))
   "Face used for match previews, e.g., in `consult-line'.")
-
-(defface consult-preview-cursor
-  '((t :inherit cursor))
-  "Face used for cursor previews and marks, e.g., in `consult-mark'.")
 
 (defface consult-preview-insertion
   '((t :inherit region))
@@ -970,22 +972,16 @@ region has been fontified."
         str)
     (buffer-substring-no-properties beg end)))
 
-(defun consult--region-with-cursor (beg end marker)
-  "Return region string with a marking at the cursor position.
-
-BEG is the begin position.
-END is the end position.
-MARKER is the cursor position."
-  (let ((str (consult--buffer-substring beg end 'fontify)))
+(defun consult--line-with-mark (marker)
+  "Current line string where the MARKER position is highlighted."
+  (let* ((beg (pos-bol))
+         (end (pos-eol))
+         (str (consult--buffer-substring beg end 'fontify)))
     (if (>= marker end)
-        (concat str #(" " 0 1 (face consult-preview-cursor)))
+        (concat str #(" " 0 1 (face consult-highlight-mark)))
       (put-text-property (- marker beg) (- (1+ marker) beg)
-                         'face 'consult-preview-cursor str)
+                         'face 'consult-highlight-mark str)
       str)))
-
-(defun consult--line-with-cursor (marker)
-  "Return current line where the cursor MARKER is highlighted."
-  (consult--region-with-cursor (pos-bol) (pos-eol) marker))
 
 ;;;; Tofu cooks
 
@@ -3144,7 +3140,7 @@ The symbol at point is added to the future history."
             ;; line-number-at-pos does not hurt much, since the mark ring is
             ;; usually small since it is limited by `mark-ring-max'.
             (push (consult--location-candidate
-                   (consult--line-with-cursor marker) marker
+                   (consult--line-with-mark marker) marker
                    (line-number-at-pos pos consult-line-numbers-widen)
                    marker)
                   candidates)))))
@@ -3193,7 +3189,7 @@ The symbol at point is added to the future history."
                           (consult--format-file-line-match (buffer-name buf) line "")
                           'consult-location (cons marker line)
                           'consult-strip t)
-                         (consult--line-with-cursor marker)
+                         (consult--line-with-mark marker)
                          (consult--tofu-encode marker))
                         candidates))))))))
     (unless candidates
