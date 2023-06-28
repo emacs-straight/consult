@@ -934,7 +934,7 @@ Also temporarily increase the GC limit via `consult--with-increased-gc'."
           ;; Location data might be invalid by now!
           (ignore-errors
             (forward-line (1- line))
-            (forward-char column))
+            (goto-char (min (+ (point) column) (pos-eol))))
           (point-marker))))))
 
 (defun consult--line-prefix (&optional curr-line)
@@ -3646,8 +3646,7 @@ Print an error message with MSG function."
                 (widen))
               (goto-char (point-min))
               (forward-line (1- line))
-              (when (> col 0)
-                (goto-char (min (+ (point) (1- col)) (pos-eol))))
+              (goto-char (min (+ (point) col) (pos-eol)))
               (point))))
       (when (and str (not (equal str "")))
         (funcall msg "Please enter a number."))
