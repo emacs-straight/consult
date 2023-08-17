@@ -928,8 +928,7 @@ Also temporarily increase the GC limit via `consult--with-increased-gc'."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (save-excursion
-        (save-restriction
-          (widen)
+        (without-restriction
           (goto-char (point-min))
           ;; Location data might be invalid by now!
           (ignore-errors
@@ -3093,10 +3092,8 @@ The symbol at point is added to the future history."
   (let* ((candidates (consult--slow-operation
                          "Collecting headings..."
                        (consult--outline-candidates)))
-         (min-level (- (apply #'min (mapcar
-                                     (lambda (cand)
-                                       (get-text-property 0 'consult--outline-level cand))
-                                     candidates))
+         (min-level (- (cl-loop for cand in candidates minimize
+                                (get-text-property 0 'consult--outline-level cand))
                        ?1))
          (narrow-pred (lambda (cand)
                         (<= (get-text-property 0 'consult--outline-level cand)
