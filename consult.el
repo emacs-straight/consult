@@ -283,6 +283,14 @@ The dynamically computed arguments are appended.
 Can be either a string, or a list of strings or expressions."
   :type '(choice string (repeat (choice string sexp))))
 
+(defcustom consult-fd-args
+  '((if (executable-find "fdfind") "fdfind" "fd")
+    "--full-path --color=never")
+  "Command line arguments for fd, see `consult-fd'.
+The dynamically computed arguments are appended.
+Can be either a string, or a list of strings or expressions."
+  :type '(choice string (repeat (choice string sexp))))
+
 (defcustom consult-locate-args
   "locate --ignore-case" ;; --existing not supported by Debian plocate
   "Command line arguments for locate, see `consult-locate'.
@@ -4870,11 +4878,13 @@ See `consult-grep' for details."
     (lambda (input)
       (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
                    (flags (append cmd opts))
-                   (ignore-case (if (or (member "-S" flags) (member "--smart-case" flags))
-                                    (let (case-fold-search)
-                                      ;; Case insensitive if there are no uppercase letters
-                                      (not (string-match-p "[[:upper:]]" arg)))
-                                  (or (member "-i" flags) (member "--ignore-case" flags)))))
+                   (ignore-case
+                    (and (not (or (member "-s" flags) (member "--case-sensitive" flags)))
+                         (or (member "-i" flags) (member "--ignore-case" flags)
+                             (and (or (member "-S" flags) (member "--smart-case" flags))
+                                  (let (case-fold-search)
+                                    ;; Case insensitive if there are no uppercase letters
+                                    (not (string-match-p "[[:upper:]]" arg))))))))
         (if (or (member "-F" flags) (member "--fixed-strings" flags))
             (cons (append cmd (list "-e" arg) opts paths)
                   (apply-partially #'consult--highlight-regexps
@@ -4945,13 +4955,51 @@ INITIAL is initial input."
 
 ;;;###autoload
 (defun consult-find (&optional dir initial)
-  "Search for files in DIR matching input regexp given INITIAL input.
-See `consult-grep' for details regarding the asynchronous search
-and the arguments."
+  "Search for files with `find' in DIR.
+The file names must match the input regexp.  INITIAL is the
+initial minibuffer input.  See `consult-grep' for details
+regarding the asynchronous search and the arguments."
   (interactive "P")
   (pcase-let* ((`(,prompt ,paths ,dir) (consult--directory-prompt "Find" dir))
                (default-directory dir)
                (builder (consult--find-make-builder paths)))
+    (find-file (consult--find prompt builder initial))))
+
+;;;;; Command: consult-fd
+
+(defun consult--fd-make-builder (paths)
+  "Build find command line, finding across PATHS."
+  (let ((cmd (consult--build-args consult-fd-args)))
+    (lambda (input)
+      (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
+                   (flags (append cmd opts))
+                   (ignore-case
+                    (and (not (or (member "-s" flags) (member "--case-sensitive" flags)))
+                         (or (member "-i" flags) (member "--ignore-case" flags)
+                             (let (case-fold-search)
+                               ;; Case insensitive if there are no uppercase letters
+                               (not (string-match-p "[[:upper:]]" arg)))))))
+        (if (or (member "-F" flags) (member "--fixed-strings" flags))
+            (cons (append cmd (list arg) opts paths)
+                  (apply-partially #'consult--highlight-regexps
+                                   (list (regexp-quote arg)) ignore-case))
+          (pcase-let ((`(,re . ,hl) (funcall consult--regexp-compiler arg 'pcre ignore-case)))
+            (when re
+              (cons (append cmd
+                            (cdr (mapcan (lambda (x) `("--and" ,x)) re))
+                            opts paths)
+                    hl))))))))
+
+;;;###autoload
+(defun consult-fd (&optional dir initial)
+  "Search for files with `fd' in DIR.
+The file names must match the input regexp.  INITIAL is the
+initial minibuffer input.  See `consult-grep' for details
+regarding the asynchronous search and the arguments."
+  (interactive "P")
+  (pcase-let* ((`(,prompt ,paths ,dir) (consult--directory-prompt "Fd" dir))
+               (default-directory dir)
+               (builder (consult--fd-make-builder paths)))
     (find-file (consult--find prompt builder initial))))
 
 ;;;;; Command: consult-locate
