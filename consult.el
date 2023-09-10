@@ -1685,8 +1685,9 @@ PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
                         (setq cand (substring-no-properties cand))
                         (with-selected-window (active-minibuffer-window)
                           (let ((input (minibuffer-contents-no-properties))
-                                (narrow consult--narrow))
-                            (with-selected-window (or (minibuffer-selected-window) (next-window))
+                                (narrow consult--narrow)
+                                (win (or (minibuffer-selected-window) (next-window))))
+                            (with-selected-window win
                               (when-let ((transformed (funcall transform narrow input cand))
                                          (debounce (consult--preview-key-debounce preview-key transformed)))
                                 (when timer
@@ -1710,15 +1711,18 @@ PREVIEW-KEY, STATE, TRANSFORM and CANDIDATE."
                                 ;; the thing which is actually previewed.
                                 (unless (equal-including-properties previewed transformed)
                                   (if (> debounce 0)
-                                      (let ((win (selected-window)))
-                                        (setq timer
-                                              (run-at-time
-                                               debounce nil
-                                               (lambda ()
-                                                 (when (window-live-p win)
-                                                   (with-selected-window win
-                                                     ;; STEP 2: Preview candidate
-                                                     (funcall state 'preview (setq previewed transformed))))))))
+                                      (setq timer
+                                            (run-at-time
+                                             debounce nil
+                                             (lambda ()
+                                               ;; Preview only when a completion
+                                               ;; window is selected and when
+                                               ;; the preview window is alive.
+                                               (when (and (consult--completion-window-p)
+                                                          (window-live-p win))
+                                                 (with-selected-window win
+                                                   ;; STEP 2: Preview candidate
+                                                   (funcall state 'preview (setq previewed transformed)))))))
                                     ;; STEP 2: Preview candidate
                                     (funcall state 'preview (setq previewed transformed)))))))))))
               (consult--preview-append-local-pch
