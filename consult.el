@@ -497,11 +497,7 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
 The function must return a list of regular expressions and a highlighter
 function.")
 
-(defvar consult--customize-alist
-  ;; Disable preview in frames, since frames do not get up cleaned
-  ;; properly.  Preview is only supported by `consult-buffer' and
-  ;; `consult-buffer-other-window'.
-  `((,#'consult-buffer-other-frame :preview-key nil))
+(defvar consult--customize-alist nil
   "Command configuration alist for fine-grained configuration.
 
 Each element of the list must have the form (command-name plist...).  The
@@ -4684,16 +4680,23 @@ outside a project.  See `consult-buffer' for more details."
 
 ;;;###autoload
 (defun consult-buffer-other-window ()
-  "Variant of `consult-buffer' which opens in other window."
+  "Variant of `consult-buffer' which switches to a buffer in another window."
   (interactive)
   (let ((consult--buffer-display #'switch-to-buffer-other-window))
     (consult-buffer)))
 
 ;;;###autoload
 (defun consult-buffer-other-frame ()
-  "Variant of `consult-buffer' which opens in other frame."
+  "Variant of `consult-buffer' which switches to a buffer in another frame."
   (interactive)
   (let ((consult--buffer-display #'switch-to-buffer-other-frame))
+    (consult-buffer)))
+
+;;;###autoload
+(defun consult-buffer-other-tab ()
+  "Variant of `consult-buffer' which switches to a buffer in another tab."
+  (interactive)
+  (let ((consult--buffer-display #'switch-to-buffer-other-tab))
     (consult-buffer)))
 
 ;;;;; Command: consult-grep
