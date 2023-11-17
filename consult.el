@@ -497,7 +497,12 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
 The function must return a list of regular expressions and a highlighter
 function.")
 
-(defvar consult--customize-alist nil
+(defvar consult--customize-alist
+  ;; Disable preview in frames, since `consult--jump-preview' does not properly
+  ;; clean up.  See gh:minad/consult#593. This issue should better be fixed in
+  ;; `consult--jump-preview'.
+  `((,#'consult-buffer-other-frame :preview-key nil)
+    (,#'consult-buffer-other-tab :preview-key nil))
   "Command configuration alist for fine-grained configuration.
 
 Each element of the list must have the form (command-name plist...).  The
@@ -1512,6 +1517,10 @@ The function can be used as the `:state' argument of `consult--read'."
       (when (eq action 'preview)
         (mapc #'funcall restore)
         (setq restore nil)
+        ;; TODO Better buffer preview support
+        ;; 1. Use consult--buffer-preview instead of consult--jump-ensure-buffer
+        ;; 2. Remove function consult--jump-ensure-buffer
+        ;; 3. Remove consult-buffer-other-* from consult-customize-alist
         (when-let ((pos (or (car-safe cand) cand)) ;; Candidate can be previewed
                    ((consult--jump-ensure-buffer pos)))
           (let ((saved-min (point-min-marker))
