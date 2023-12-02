@@ -5,7 +5,7 @@
 ;; Author: Daniel Mendler and Consult contributors
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
-;; Version: 0.35
+;; Version: 1.0
 ;; Package-Requires: ((emacs "27.1") (compat "29.1.4.1"))
 ;; Homepage: https://github.com/minad/consult
 ;; Keywords: matching, files, completion
@@ -2764,6 +2764,7 @@ KEYMAP is a command-specific keymap."
                                          (eq (or (car-safe n) n -1) narrow)))
                                      sources))
                    ((seq-find (lambda (src) (plist-get src :default)) sources))
+                   ((seq-find (lambda (src) (not (plist-get src :hidden))) sources))
                    ((aref sources 0))))
              (idx (seq-position sources src))
              (def (and (string-blank-p selected) ;; default candidate
