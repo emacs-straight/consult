@@ -1274,30 +1274,26 @@ ORIG is the original function, HOOKS the arguments."
              ;; file-attributes may throw permission denied error
              (attrs (ignore-errors (file-attributes name)))
              (size (file-attribute-size attrs)))
-    (if (>= size consult-preview-partial-size)
-        (with-current-buffer
-            (generate-new-buffer (format "consult-partial-preview-%s" name))
-          (setq buffer-read-only t)
-          (with-silent-modifications
-            (insert-file-contents name nil 0 consult-preview-partial-chunk))
-          (goto-char (point-min))
-          (when (save-excursion (search-forward "\0" nil 'noerror))
-            (kill-buffer)
-            (error "Binary file `%s' not previewed" name))
-          ;; Auto detect major mode and hope for the best, given the file which
-          ;; is only previewed partially.
-          (set-auto-mode)
-          (font-lock-mode 1)
-          (current-buffer))
-      (with-current-buffer (find-file-noselect name 'nowarn)
-        (when (bound-and-true-p so-long-detected-p)
-          (kill-buffer)
-          (error "File `%s' with long lines not previewed" name))
-        (when (and (memq major-mode '(fundamental-mode hexl-mode))
-                   (save-excursion (search-forward "\0" nil 'noerror)))
-          (kill-buffer)
-          (error "Binary file `%s' not previewed" name))
-        (current-buffer)))))
+    (with-current-buffer (if (>= size consult-preview-partial-size)
+                             (generate-new-buffer (format "consult-partial-preview-%s" name))
+                           (find-file-noselect name 'nowarn))
+      (when (>= size consult-preview-partial-size)
+        (setq buffer-read-only t)
+        (with-silent-modifications
+          (insert-file-contents name nil 0 consult-preview-partial-chunk))
+        (goto-char (point-min))
+        ;; Auto detect major mode and hope for the best, given the file which
+        ;; is only previewed partially.
+        (set-auto-mode)
+        (font-lock-mode 1))
+      (when (bound-and-true-p so-long-detected-p)
+        (kill-buffer)
+        (error "File `%s' with long lines not previewed" name))
+      (when (and (memq major-mode '(fundamental-mode hexl-mode))
+                 (save-excursion (search-forward "\0" nil 'noerror)))
+        (kill-buffer)
+        (error "Binary file `%s' not previewed" name))
+      (current-buffer))))
 
 (defun consult--find-file-temporarily (name)
   "Open file NAME temporarily for preview."
@@ -2554,44 +2550,52 @@ PREVIEW-KEY are the preview keys."
                  (setq-local minibuffer-default-add-function
                              (apply-partially #'consult--add-history (consult--async-p table) add-history))))
     (consult--with-async (async table)
-      ;; Do not unnecessarily let-bind the lambdas to avoid over-capturing in
-      ;; the interpreter.  This will make closures and the lambda string
-      ;; representation larger, which makes debugging much worse.  Fortunately
-      ;; the over-capturing problem does not affect the bytecode interpreter
-      ;; which does a proper scope analysis.
-      (let ((metadata `(metadata
-                        ,@(when category `((category . ,category)))
-                        ,@(when group `((group-function . ,group)))
-                        ,@(when annotate
-                            `((affixation-function
-                               . ,(apply-partially #'consult--read-affixate annotate))
-                              (annotation-function
-                               . ,(apply-partially #'consult--read-annotate annotate))))
-                        ,@(unless sort '((cycle-sort-function . identity)
-                                         (display-sort-function . identity)))))
-            (consult--annotate-align-width 0))
-        (consult--with-preview
-            preview-key state
-            (lambda (narrow input cand)
-              (funcall lookup cand (funcall async nil) input narrow))
-            (apply-partially #'run-hook-with-args-until-success
-                             'consult--completion-candidate-hook)
-            (pcase-exhaustive history
-              (`(:input ,var) var)
-              ((pred symbolp)))
-          (completing-read prompt
-                           (lambda (str pred action)
-                             (let ((result (complete-with-action action (funcall async nil) str pred)))
-                               (if (eq action 'metadata)
-                                   (if (and (eq (car result) 'metadata) (cdr result))
-                                       ;; Merge metadata
-                                       `(metadata ,@(cdr metadata) ,@(cdr result))
-                                     metadata)
-                                 result)))
-                           predicate require-match initial
-                           (if (symbolp history) history (cadr history))
-                           default
-                           inherit-input-method))))))
+      (consult--with-preview
+          preview-key state
+          (lambda (narrow input cand)
+            (funcall lookup cand (funcall async nil) input narrow))
+          (apply-partially #'run-hook-with-args-until-success
+                           'consult--completion-candidate-hook)
+          (pcase-exhaustive history
+            (`(:input ,var) var)
+            ((pred symbolp)))
+        ;; Do not unnecessarily let-bind the lambdas to avoid over-capturing in
+        ;; the interpreter.  This will make closures and the lambda string
+        ;; representation larger, which makes debugging much worse.  Fortunately
+        ;; the over-capturing problem does not affect the bytecode interpreter
+        ;; which does a proper scope analysis.
+        (let* ((metadata `(metadata
+                           ,@(when category `((category . ,category)))
+                           ,@(when group `((group-function . ,group)))
+                           ,@(when annotate
+                               `((affixation-function
+                                  . ,(apply-partially #'consult--read-affixate annotate))
+                                 (annotation-function
+                                  . ,(apply-partially #'consult--read-annotate annotate))))
+                           ,@(unless sort '((cycle-sort-function . identity)
+                                            (display-sort-function . identity)))))
+               (consult--annotate-align-width 0)
+               (selected
+                (completing-read
+                 prompt
+                 (lambda (str pred action)
+                   (let ((result (complete-with-action action (funcall async nil) str pred)))
+                     (if (eq action 'metadata)
+                         (if (and (eq (car result) 'metadata) (cdr result))
+                             ;; Merge metadata
+                             `(metadata ,@(cdr metadata) ,@(cdr result))
+                           metadata)
+                       result)))
+                 predicate require-match initial
+                 (if (symbolp history) history (cadr history))
+                 default
+                 inherit-input-method)))
+          ;; Repair the null completion semantics. `completing-read' may return
+          ;; an empty string even if REQUIRE-MATCH is non-nil. One can always
+          ;; opt-in to null completion by passing the empty string for DEFAULT.
+          (when (and require-match (not default) (equal selected ""))
+            (user-error "No selection"))
+          selected)))))
 
 (cl-defun consult--read (table &rest options &key
                                prompt predicate require-match history default
