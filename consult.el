@@ -806,10 +806,15 @@ asked for the directories or files to search via
                               ;; TODO: `minibuffer-completing-file-name' is
                               ;; mostly deprecated, but still in use. Packages
                               ;; should instead use the completion metadata.
-                              (minibuffer-completing-file-name t))
-                          (completing-read-multiple "Directories or files: "
-                                                    #'completion-file-name-table
-                                                    nil t def 'consult--path-history def)))
+                              (minibuffer-completing-file-name t)
+                              (ignore-case read-file-name-completion-ignore-case))
+                          (consult--minibuffer-with-setup-hook
+                              (lambda ()
+                                (setq-local completion-ignore-case ignore-case)
+                                (set-syntax-table minibuffer-local-filename-syntax))
+                            (completing-read-multiple "Directories or files: "
+                                                      #'completion-file-name-table
+                                                      nil t def 'consult--path-history def))))
                  ((and `(,p) (guard (file-directory-p p))) p)
                  (ps (setq paths (mapcar (lambda (p)
                                            (file-relative-name (expand-file-name p)))
