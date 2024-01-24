@@ -5,7 +5,7 @@
 ;; Author: Daniel Mendler and Consult contributors
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
-;; Version: 1.1
+;; Version: 1.2
 ;; Package-Requires: ((emacs "27.1") (compat "29.1.4.4"))
 ;; Homepage: https://github.com/minad/consult
 ;; Keywords: matching, files, completion
@@ -2597,7 +2597,7 @@ PREVIEW-KEY are the preview keys."
           ;; Repair the null completion semantics. `completing-read' may return
           ;; an empty string even if REQUIRE-MATCH is non-nil. One can always
           ;; opt-in to null completion by passing the empty string for DEFAULT.
-          (when (and require-match (not default) (equal selected ""))
+          (when (and (eq require-match t) (not default) (equal selected ""))
             (user-error "No selection"))
           selected)))))
 
