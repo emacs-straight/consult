@@ -1302,8 +1302,9 @@ ORIG is the original function, HOOKS the arguments."
       (when (bound-and-true-p so-long-detected-p)
         (kill-buffer)
         (error "File `%s' with long lines not previewed" name))
-      (when (and (memq major-mode '(fundamental-mode hexl-mode))
-                 (save-excursion (search-forward "\0" nil 'noerror)))
+      (when (or (eq major-mode 'hexl-mode)
+                (and (eq major-mode 'fundamental-mode)
+                     (save-excursion (search-forward "\0" nil 'noerror))))
         (kill-buffer)
         (error "Binary file `%s' not previewed" name))
       (current-buffer))))
@@ -1331,7 +1332,7 @@ ORIG is the original function, HOOKS the arguments."
             (set-default k d)
             (set k v)))
       (error
-       (message "%s" (cdr err))
+       (message "%s" (error-message-string err))
        nil))))
 
 (defun consult--temporary-files ()
@@ -4471,7 +4472,7 @@ AS is a conversion function."
 
 (defun consult--buffer-preview ()
   "Buffer preview function."
-  (let ((orig-buf (current-buffer))
+  (let ((orig-buf (window-buffer (consult--original-window)))
         (orig-prev (copy-sequence (window-prev-buffers)))
         (orig-next (copy-sequence (window-next-buffers)))
         other-win)
