@@ -1283,29 +1283,39 @@ ORIG is the original function, HOOKS the arguments."
              ;; file-attributes may throw permission denied error
              (attrs (ignore-errors (file-attributes name)))
              (size (file-attribute-size attrs)))
-    (with-current-buffer (if (>= size consult-preview-partial-size)
-                             (generate-new-buffer (format "consult-partial-preview-%s" name))
-                           (find-file-noselect name 'nowarn))
-      (when (>= size consult-preview-partial-size)
-        (setq buffer-read-only t)
-        (with-silent-modifications
-          (insert-file-contents name nil 0 consult-preview-partial-chunk)
-          (goto-char (point-max))
-          (insert "\nFile truncated. End of partial preview.\n"))
-        (goto-char (point-min))
-        ;; Auto detect major mode and hope for the best, given the file which
-        ;; is only previewed partially.
-        (set-auto-mode)
-        (font-lock-mode 1))
-      (when (bound-and-true-p so-long-detected-p)
-        (kill-buffer)
-        (error "File `%s' with long lines not previewed" name))
-      (when (or (eq major-mode 'hexl-mode)
-                (and (eq major-mode 'fundamental-mode)
-                     (save-excursion (search-forward "\0" nil 'noerror))))
-        (kill-buffer)
-        (error "Binary file `%s' not previewed" name))
-      (current-buffer))))
+    (let* ((partial (>= size consult-preview-partial-size))
+           (buffer (if partial
+                       (generate-new-buffer (format "consult-partial-preview-%s" name))
+                     (find-file-noselect name 'nowarn)))
+           (success nil))
+      (unwind-protect
+          (with-current-buffer buffer
+            (if (not partial)
+                (when (or (eq major-mode 'hexl-mode)
+                        (and (eq major-mode 'fundamental-mode)
+                             (save-excursion (search-forward "\0" nil 'noerror))))
+                  (error "No preview of binary file `%s'"
+                         (file-name-nondirectory name)))
+              (with-silent-modifications
+                (setq buffer-read-only t)
+                (insert-file-contents name nil 0 consult-preview-partial-chunk)
+                (goto-char (point-max))
+                (insert "\nFile truncated. End of partial preview.\n")
+                (goto-char (point-min)))
+              (when (save-excursion (search-forward "\0" nil 'noerror))
+                (error "No partial preview of binary file `%s'"
+                       (file-name-nondirectory name)))
+              ;; Auto detect major mode and hope for the best, given that the
+              ;; file is only previewed partially.  If an error is thrown the
+              ;; buffer will be killed and preview is aborted.
+              (set-auto-mode)
+              (font-lock-mode 1))
+            (when (bound-and-true-p so-long-detected-p)
+              (error "No preview of file `%s' with long lines"
+                     (file-name-nondirectory name)))
+            (setq success (current-buffer)))
+        (unless success
+          (kill-buffer buffer))))))
 
 (defun consult--find-file-temporarily (name)
   "Open file NAME temporarily for preview."
@@ -2334,20 +2344,18 @@ The refresh happens immediately when candidates are pushed."
   "Create async function from ASYNC, which refreshes the display.
 
 The refresh happens after a DELAY, defaulting to `consult-async-refresh-delay'."
-  (let ((timer) (refresh) (delay (or delay consult-async-refresh-delay)))
+  (let ((delay (or delay consult-async-refresh-delay))
+        (timer (timer-create)))
+    (timer-set-function timer async '(refresh))
     (lambda (action)
       (prog1 (funcall async action)
         (pcase action
           ((or (pred consp) 'flush)
-           (setq refresh t)
-           (unless timer
-             (setq timer (run-at-time
-                          nil delay
-                          (lambda ()
-                            (when refresh
-                              (setq refresh nil)
-                              (funcall async 'refresh)))))))
-          ('destroy (when timer (cancel-timer timer))))))))
+           (unless (memq timer timer-list)
+             (timer-set-time timer (timer-relative-time nil delay))
+             (timer-activate timer)))
+          ('destroy
+           (cancel-timer timer)))))))
 
 (defmacro consult--async-command (builder &rest args)
   "Asynchronous command pipeline.
