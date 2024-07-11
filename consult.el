@@ -6,7 +6,7 @@
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
 ;; Version: 1.7
-;; Package-Requires: ((emacs "27.1") (compat "29.1.4.4"))
+;; Package-Requires: ((emacs "27.1") (compat "30"))
 ;; Homepage: https://github.com/minad/consult
 ;; Keywords: matching, files, completion
 
@@ -1274,7 +1274,7 @@ Return the location marker."
                  ;; `find-file-hook' ending with `-check-buffers'. This has been
                  ;; changed in Emacs 30. Now a `change-major-mode-hook' is used
                  ;; instead with the suffix `-check-buffers'.
-                 (suffix (if (eval-when-compile (>= emacs-major-version 30))
+                 (suffix (static-if (>= emacs-major-version 30)
                              "-enable-in-buffer"
                            "-check-buffers"))
                  ((string-suffix-p suffix name)))
