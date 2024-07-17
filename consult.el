@@ -336,6 +336,12 @@ chunk from the beginning of the file is previewed."
   "Number of file buffers to keep open temporarily during preview."
   :type '(natnum :tag "Number of buffers"))
 
+(defcustom consult-preview-excluded-buffers nil
+  "Buffers excluded from preview.
+The value should conform to the predicate format demanded by the
+function `buffer-match-p'."
+  :type 'sexp)
+
 (defcustom consult-preview-excluded-files
   '("\\`/[^/|:]+:") ;; Do not preview remote files
   "List of regexps matched against names of files, which are not previewed."
@@ -2989,10 +2995,10 @@ corresponding customization options."
           (setq args (cddr args)))))
     (macroexp-progn setter)))
 
-(defun consult--customize-get (&optional cmd)
-  "Get configuration from `consult--customize-alist' for CMD."
+(defun consult--customize-get ()
+  "Get configuration from `consult--customize-alist' for `this-command'."
   (mapcar (lambda (x) (eval x 'lexical))
-          (alist-get (or cmd this-command) consult--customize-alist)))
+          (alist-get this-command consult--customize-alist)))
 
 ;;;; Commands
 
@@ -4487,7 +4493,8 @@ AS is a conversion function."
            (setq other-win (selected-window)))
          (let ((win (or other-win (selected-window)))
                (buf (or (and cand (get-buffer cand)) orig-buf)))
-           (when (and (window-live-p win) (buffer-live-p buf))
+           (when (and (window-live-p win) (buffer-live-p buf)
+                      (not (buffer-match-p consult-preview-excluded-buffers buf)))
              (with-selected-window win
                (unless (or orig-prev orig-next)
                  (setq orig-prev (copy-sequence (window-prev-buffers))
