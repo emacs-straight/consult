@@ -982,7 +982,6 @@ Table of Contents
    consult-ripgrep-args              Command line arguments for ripgrep                  
    consult-themes                    List of themes to be presented for selection        
    consult-widen-key                 Widening key during completion                      
-   consult-yank-rotate               Rotate kill ring                                    
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
@@ -1109,7 +1108,7 @@ Table of Contents
   model fits best for you.
 
   • The builtin completion UI, which pops up the `*Completions*' buffer.
-  • The builtin `icomplete-vertical-mode' in Emacs 28 or newer.
+  • The builtin `icomplete-vertical-mode'.
   • [mct by Protesilaos Stavrou]: Minibuffer and Completions in Tandem,
     which builds on the default completion UI.
 
