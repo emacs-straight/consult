@@ -1,4 +1,4 @@
-This is doc5BXcAK.info, produced by makeinfo version 6.8 from
+This is docfT9czb.info, produced by makeinfo version 6.8 from
 consult.texi.
 
 INFO-DIR-SECTION Emacs misc features
@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: doc5BXcAK.info,  Node: Top,  Next: Available commands,  Up: (dir)
+File: docfT9czb.info,  Node: Top,  Next: Available commands,  Up: (dir)
 
 consult.el - Consulting completing-read
 ***************************************
@@ -103,7 +103,7 @@ Indices
 
 
 
-File: doc5BXcAK.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
+File: docfT9czb.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
 
 1 Available commands
 ********************
@@ -136,7 +136,7 @@ their descriptions.
 * Miscellaneous::                Various other useful commands
 
 
-File: doc5BXcAK.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
+File: docfT9czb.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
 
 1.1 Virtual Buffers
 ===================
@@ -172,7 +172,7 @@ File: doc5BXcAK.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available com
      ‘recentf-mode’ enables tracking of recent files.
 
 
-File: doc5BXcAK.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
+File: docfT9czb.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
 
 1.2 Editing
 ===========
@@ -190,7 +190,7 @@ File: doc5BXcAK.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  
    • ‘consult-kmacro’: Select macro from the macro ring and execute it.
 
 
-File: doc5BXcAK.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
+File: docfT9czb.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
 
 1.3 Register
 ============
@@ -221,7 +221,7 @@ File: doc5BXcAK.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: A
         • ‘C-u 100 M-' x’: Store number in register ‘x’.
 
 
-File: doc5BXcAK.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
+File: docfT9czb.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
 
 1.4 Navigation
 ==============
@@ -245,7 +245,7 @@ File: doc5BXcAK.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Av
      imenu-anywhere (https://github.com/vspinu/imenu-anywhere).
 
 
-File: doc5BXcAK.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
+File: docfT9czb.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
 
 1.5 Search
 ==========
@@ -278,7 +278,7 @@ File: doc5BXcAK.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  U
      region restricts the filtering.
 
 
-File: doc5BXcAK.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
+File: docfT9czb.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
 
 1.6 Grep and Find
 =================
@@ -315,7 +315,7 @@ File: doc5BXcAK.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  
      ‘consult-find’ work just like those for the consult grep commands.
 
 
-File: doc5BXcAK.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
+File: docfT9czb.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
 
 1.7 Compilation
 ===============
@@ -330,7 +330,7 @@ File: doc5BXcAK.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find
      ‘xref-show-xrefs-function’ and ‘xref-show-definitions-function’.
 
 
-File: doc5BXcAK.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
+File: docfT9czb.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
 
 1.8 Histories
 =============
@@ -353,7 +353,7 @@ File: doc5BXcAK.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: A
      ‘isearch-edit-string’.
 
 
-File: doc5BXcAK.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
+File: docfT9czb.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
 
 1.9 Modes
 =========
@@ -366,7 +366,7 @@ File: doc5BXcAK.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Avai
      local-minor/global-minor/major mode via the keys ‘l/g/m’.
 
 
-File: doc5BXcAK.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
+File: docfT9czb.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
 
 1.10 Org Mode
 =============
@@ -381,7 +381,7 @@ File: doc5BXcAK.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available
      live preview and recursive editing.
 
 
-File: doc5BXcAK.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
+File: docfT9czb.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
 
 1.11 Help
 =========
@@ -411,7 +411,7 @@ File: doc5BXcAK.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: A
                      "corfu" "cape" "tempel"))
 
 
-File: doc5BXcAK.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
+File: docfT9czb.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
 1.12 Miscellaneous
 ==================
@@ -450,7 +450,7 @@ File: doc5BXcAK.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
      place directly in the original buffer.
 
 
-File: doc5BXcAK.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
+File: docfT9czb.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
 
 2 Special features
 ******************
@@ -474,7 +474,7 @@ advanced features.
 * Embark integration::           Actions, Grep/Occur-buffer export
 
 
-File: doc5BXcAK.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
+File: docfT9czb.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
 
 2.1 Live previews
 =================
@@ -555,7 +555,7 @@ experience.
                           :debounce 1 any))
 
 
-File: doc5BXcAK.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
+File: docfT9czb.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
 
 2.2 Narrowing and grouping
 ==========================
@@ -590,7 +590,7 @@ keys are automatically shown in the which-key window after pressing the
 ‘consult-narrow-key’.
 
 
-File: doc5BXcAK.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
+File: docfT9czb.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
 
 2.3 Asynchronous search
 =======================
@@ -656,7 +656,7 @@ status:
      provided.
 
 
-File: doc5BXcAK.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
+File: docfT9czb.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
 
 2.4 Multiple sources
 ====================
@@ -754,7 +754,7 @@ the internal ‘consult--multi’ API.  The function ‘consult--multi’ can be
 used to create new multi-source commands.
 
 
-File: doc5BXcAK.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
+File: docfT9czb.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
 
 2.5 Embark integration
 ======================
@@ -798,7 +798,7 @@ package is installed.  These three workflows are symmetric.
      ‘wdired-change-to-wdired-mode’ for editing.
 
 
-File: doc5BXcAK.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
+File: docfT9czb.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
 
 3 Configuration
 ***************
@@ -825,7 +825,7 @@ lexical binding, since they use lambdas and closures.
 * Fine-tuning::                  Fine-grained configuration for special requirements
 
 
-File: doc5BXcAK.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
+File: docfT9czb.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
 
 3.1 Use-package example
 =======================
@@ -950,7 +950,7 @@ additional configuration examples.
      )
 
 
-File: doc5BXcAK.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
+File: docfT9czb.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
 
 3.2 Custom variables
 ====================
@@ -1006,7 +1006,7 @@ consult-themes                     List of themes to be presented for selection
 consult-widen-key                  Widening key during completion
 
 
-File: doc5BXcAK.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
+File: docfT9czb.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
 
 3.3 Project support
 ===================
@@ -1033,7 +1033,7 @@ possible to configure alternative methods via the customization variable
      (setq consult-project-function nil)
 
 
-File: doc5BXcAK.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
+File: docfT9czb.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
 
 3.4 Fine-tuning of individual commands
 ======================================
@@ -1102,7 +1102,7 @@ by the following techniques:
   5. Write or propose a patch.
 
 
-File: doc5BXcAK.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
+File: docfT9czb.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
 4 Recommended packages
 **********************
@@ -1147,7 +1147,7 @@ Consult wiki.  These packages integrate Consult with special programs or
 with other packages in the wider Emacs ecosystem.
 
 
-File: doc5BXcAK.info,  Node: Bug reports,  Next: Contributions,  Prev: Recommended packages,  Up: Top
+File: docfT9czb.info,  Node: Bug reports,  Next: Contributions,  Prev: Recommended packages,  Up: Top
 
 5 Bug reports
 *************
@@ -1212,7 +1212,7 @@ lexical binding
 Consult often relies on lambdas and lexical closures.
 
 
-File: doc5BXcAK.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Bug reports,  Up: Top
+File: docfT9czb.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Bug reports,  Up: Top
 
 6 Contributions
 ***************
@@ -1232,7 +1232,7 @@ contribute to the Consult wiki (https://github.com/minad/consult/wiki),
 in case you want to share small configuration or command snippets.
 
 
-File: doc5BXcAK.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
+File: docfT9czb.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
 
 7 Acknowledgments
 *****************
@@ -1283,7 +1283,7 @@ Manuel Uberti (https://github.com/manuel-uberti/), Stefan Monnier
 (https://protesilaos.com).
 
 
-File: doc5BXcAK.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
+File: docfT9czb.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
 8 Indices
 *********
@@ -1294,7 +1294,7 @@ File: doc5BXcAK.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 * Concept index::                List of all Consult-specific concepts
 
 
-File: doc5BXcAK.info,  Node: Function index,  Next: Concept index,  Up: Indices
+File: docfT9czb.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
 8.1 Function index
 ==================
@@ -1352,7 +1352,7 @@ File: doc5BXcAK.info,  Node: Function index,  Next: Concept index,  Up: Indices
 * consult-yank-replace:                  Editing.               (line 6)
 
 
-File: doc5BXcAK.info,  Node: Concept index,  Prev: Function index,  Up: Indices
+File: docfT9czb.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 8.2 Concept index
 =================
