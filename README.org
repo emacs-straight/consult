@@ -154,7 +154,7 @@ their descriptions.
   commands =consult-register-load=, =consult-register-store= or the built-in Emacs
   register commands.
 - =consult-register-format=: Set =register-preview-function= to this function for
-  an enhanced register formatting. See the [[#use-package-example][example configuration]].
+  an enhanced register formatting. Used automatically by =consult-register-window=.
 - =consult-register-window=: Replace =register-preview= with this function for a
   better register window. See the [[#use-package-example][example configuration]].
 - =consult-register-load=: Utility command to quickly load a register.
@@ -753,11 +753,15 @@ they use lambdas and closures.
 
 The Consult package only provides commands and does not add any keybindings or
 modes. Therefore the package is non-intrusive but requires a little setup
-effort. In order to use the Consult commands, it is advised to add keybindings
-for commands which are accessed often. Rarely used commands can be invoked via
-=M-x=. Feel free to only bind the commands you consider useful to your workflow.
-The configuration shown here relies on the =use-package= macro, which is a
-convenient tool to manage package configurations.
+effort. While the configuration example is long, it consists essentially of key
+bindings only, such that the risk of interference with other Emacs functionality
+is minimized.
+
+In order to use the Consult commands, it is recommended to add keybindings for
+commands which are accessed often. Rarely used commands can be invoked via =M-x=.
+Feel free to only bind the commands you consider useful to your workflow. The
+configuration shown here relies on the =use-package= macro, which is a convenient
+tool to manage package configurations.
 
 *NOTE:* There is the [[https://github.com/minad/consult/wiki][Consult wiki]], where you can contribute additional
 configuration examples.
@@ -826,15 +830,12 @@ configuration examples.
   ;; The :init configuration is always executed (Not lazy)
   :init
 
-  ;; Optionally configure the register formatting. This improves the register
-  ;; preview for `consult-register', `consult-register-load',
-  ;; `consult-register-store' and the Emacs built-ins.
-  (setq register-preview-delay 0.5
-        register-preview-function #'consult-register-format)
-
-  ;; Optionally tweak the register preview window.
-  ;; This adds thin lines, sorting and hides the mode line of the window.
+  ;; Tweak the register preview for `consult-register-load',
+  ;; `consult-register-store' and the built-in commands.  This improves the
+  ;; register formatting, adds thin separator lines, register sorting and hides
+  ;; the window mode line.
   (advice-add #'register-preview :override #'consult-register-window)
+  (setq register-preview-delay 0.5)
 
   ;; Use Consult to select xref locations with preview
   (setq xref-show-xrefs-function #'consult-xref
