@@ -1,4 +1,4 @@
-This is docWGXizh.info, produced by makeinfo version 6.8 from
+This is docPl31Vb.info, produced by makeinfo version 6.8 from
 consult.texi.
 
 INFO-DIR-SECTION Emacs misc features
@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: docWGXizh.info,  Node: Top,  Next: Available commands,  Up: (dir)
+File: docPl31Vb.info,  Node: Top,  Next: Available commands,  Up: (dir)
 
 consult.el - Consulting completing-read
 ***************************************
@@ -109,7 +109,7 @@ Indices
 
 
 
-File: docWGXizh.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
+File: docPl31Vb.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
 
 1 Available commands
 ********************
@@ -142,7 +142,7 @@ their descriptions.
 * Miscellaneous::                Various other useful commands
 
 
-File: docWGXizh.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
+File: docPl31Vb.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
 
 1.1 Virtual Buffers
 ===================
@@ -159,6 +159,9 @@ File: docWGXizh.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available com
         • r File registers
         • m Bookmarks
         • p Project
+        • B Project buffers
+        • F Project files
+        • R Project roots
         • Custom *note other sources: Multiple sources. configured in
           ‘consult-buffer-sources’.
    • ‘consult-buffer-other-window’, ‘consult-buffer-other-frame’,
@@ -178,7 +181,7 @@ File: docWGXizh.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available com
      ‘recentf-mode’ enables tracking of recent files.
 
 
-File: docWGXizh.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
+File: docPl31Vb.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
 
 1.2 Editing
 ===========
@@ -196,7 +199,7 @@ File: docWGXizh.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  
    • ‘consult-kmacro’: Select macro from the macro ring and execute it.
 
 
-File: docWGXizh.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
+File: docPl31Vb.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
 
 1.3 Register
 ============
@@ -227,7 +230,7 @@ File: docWGXizh.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: A
         • ‘C-u 100 M-' x’: Store number in register ‘x’.
 
 
-File: docWGXizh.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
+File: docPl31Vb.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
 
 1.4 Navigation
 ==============
@@ -251,7 +254,7 @@ File: docWGXizh.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Av
      imenu-anywhere (https://github.com/vspinu/imenu-anywhere).
 
 
-File: docWGXizh.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
+File: docPl31Vb.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
 
 1.5 Search
 ==========
@@ -284,7 +287,7 @@ File: docWGXizh.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  U
      region restricts the filtering.
 
 
-File: docWGXizh.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
+File: docPl31Vb.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
 
 1.6 Grep and Find
 =================
@@ -321,7 +324,7 @@ File: docWGXizh.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  
      ‘consult-find’ work just like those for the consult grep commands.
 
 
-File: docWGXizh.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
+File: docPl31Vb.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
 
 1.7 Compilation
 ===============
@@ -336,7 +339,7 @@ File: docWGXizh.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find
      ‘xref-show-xrefs-function’ and ‘xref-show-definitions-function’.
 
 
-File: docWGXizh.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
+File: docPl31Vb.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
 
 1.8 Histories
 =============
@@ -359,7 +362,7 @@ File: docWGXizh.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: A
      ‘isearch-edit-string’.
 
 
-File: docWGXizh.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
+File: docPl31Vb.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
 
 1.9 Modes
 =========
@@ -372,7 +375,7 @@ File: docWGXizh.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Avai
      local-minor/global-minor/major mode via the keys ‘l/g/m’.
 
 
-File: docWGXizh.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
+File: docPl31Vb.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
 
 1.10 Org Mode
 =============
@@ -387,7 +390,7 @@ File: docWGXizh.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available
      live preview and recursive editing.
 
 
-File: docWGXizh.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
+File: docPl31Vb.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
 
 1.11 Help
 =========
@@ -417,7 +420,7 @@ File: docWGXizh.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: A
                      "corfu" "cape" "tempel"))
 
 
-File: docWGXizh.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
+File: docPl31Vb.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
 1.12 Miscellaneous
 ==================
@@ -456,7 +459,7 @@ File: docWGXizh.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
      place directly in the original buffer.
 
 
-File: docWGXizh.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
+File: docPl31Vb.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
 
 2 Special features
 ******************
@@ -480,7 +483,7 @@ advanced features.
 * Embark integration::           Actions, Grep/Occur-buffer export
 
 
-File: docWGXizh.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
+File: docPl31Vb.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
 
 2.1 Live previews
 =================
@@ -561,7 +564,7 @@ experience.
                           :debounce 1 any))
 
 
-File: docWGXizh.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
+File: docPl31Vb.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
 
 2.2 Narrowing and grouping
 ==========================
@@ -596,7 +599,7 @@ keys are automatically shown in the which-key window after pressing the
 ‘consult-narrow-key’.
 
 
-File: docWGXizh.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
+File: docPl31Vb.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
 
 2.3 Asynchronous search
 =======================
@@ -662,7 +665,7 @@ status:
      provided.
 
 
-File: docWGXizh.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
+File: docPl31Vb.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
 
 2.4 Multiple sources
 ====================
@@ -760,7 +763,7 @@ the internal ‘consult--multi’ API.  The function ‘consult--multi’ can be
 used to create new multi-source commands.
 
 
-File: docWGXizh.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
+File: docPl31Vb.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
 
 2.5 Embark integration
 ======================
@@ -804,7 +807,7 @@ package is installed.  These three workflows are symmetric.
      ‘wdired-change-to-wdired-mode’ for editing.
 
 
-File: docWGXizh.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
+File: docPl31Vb.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
 
 3 Configuration
 ***************
@@ -831,7 +834,7 @@ lexical binding, since they use lambdas and closures.
 * Fine-tuning::                  Fine-grained configuration for special requirements
 
 
-File: docWGXizh.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
+File: docPl31Vb.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
 
 3.1 Use-package example
 =======================
@@ -957,7 +960,7 @@ additional configuration examples.
      )
 
 
-File: docWGXizh.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
+File: docPl31Vb.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
 
 3.2 Custom variables
 ====================
@@ -1013,7 +1016,7 @@ consult-themes                     List of themes to be presented for selection
 consult-widen-key                  Widening key during completion
 
 
-File: docWGXizh.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
+File: docPl31Vb.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
 
 3.3 Project support
 ===================
@@ -1040,7 +1043,7 @@ possible to configure alternative methods via the customization variable
      (setq consult-project-function nil)
 
 
-File: docWGXizh.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
+File: docPl31Vb.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
 
 3.4 Fine-tuning of individual commands
 ======================================
@@ -1110,7 +1113,7 @@ by the following techniques:
   5. Write or propose a patch.
 
 
-File: docWGXizh.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
+File: docPl31Vb.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
 4 Recommended packages
 **********************
@@ -1155,7 +1158,7 @@ Consult wiki.  These packages integrate Consult with special programs or
 with other packages in the wider Emacs ecosystem.
 
 
-File: docWGXizh.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
+File: docPl31Vb.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
 
 5 Bug reports
 *************
@@ -1220,7 +1223,7 @@ lexical binding
 Consult often relies on lambdas and lexical closures.
 
 
-File: docWGXizh.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
+File: docPl31Vb.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
 
 6 Hacking
 *********
@@ -1231,7 +1234,7 @@ File: docWGXizh.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports, 
 * Live preview::
 
 
-File: docWGXizh.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Up: Hacking
+File: docPl31Vb.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Up: Hacking
 
 6.1 Creating asynchronous completion commands
 =============================================
@@ -1266,7 +1269,7 @@ have Consult use it for completion, use ‘consult--async-command’:
       :prompt "run testibus: ")
 
 
-File: docWGXizh.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
+File: docPl31Vb.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
 
 6.2 Live preview
 ================
@@ -1297,7 +1300,7 @@ action argument.  Once defined, we can use this preview function in
       :state #'testibus--preview)
 
 
-File: docWGXizh.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
+File: docPl31Vb.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
 
 7 Contributions
 ***************
@@ -1317,7 +1320,7 @@ contribute to the Consult wiki (https://github.com/minad/consult/wiki),
 in case you want to share small configuration or command snippets.
 
 
-File: docWGXizh.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
+File: docPl31Vb.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
 
 8 Acknowledgments
 *****************
@@ -1368,7 +1371,7 @@ Manuel Uberti (https://github.com/manuel-uberti/), Stefan Monnier
 (https://protesilaos.com).
 
 
-File: docWGXizh.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
+File: docPl31Vb.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
 9 Indices
 *********
@@ -1379,7 +1382,7 @@ File: docWGXizh.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 * Concept index::                List of all Consult-specific concepts
 
 
-File: docWGXizh.info,  Node: Function index,  Next: Concept index,  Up: Indices
+File: docPl31Vb.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
 9.1 Function index
 ==================
@@ -1437,7 +1440,7 @@ File: docWGXizh.info,  Node: Function index,  Next: Concept index,  Up: Indices
 * consult-yank-replace:                  Editing.               (line 6)
 
 
-File: docWGXizh.info,  Node: Concept index,  Prev: Function index,  Up: Indices
+File: docPl31Vb.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 9.2 Concept index
 =================
@@ -1473,38 +1476,38 @@ Tag Table:
 Node: Top221
 Node: Available commands5204
 Node: Virtual Buffers6781
-Node: Editing8569
-Node: Register9425
-Node: Navigation11132
-Node: Search12375
-Node: Grep and Find14286
-Node: Compilation16562
-Node: Histories17238
-Node: Modes18458
-Node: Org Mode18938
-Node: Help19554
-Node: Miscellaneous20665
-Node: Special features22745
-Node: Live previews23874
-Node: Narrowing and grouping28003
-Node: Asynchronous search30006
-Node: Multiple sources33088
-Node: Embark integration37572
-Node: Configuration39767
-Node: Use-package example40917
-Node: Custom variables47398
-Node: Project support51197
-Node: Fine-tuning52462
-Node: Recommended packages55421
-Node: Bug reports57503
-Node: Hacking60584
-Node: Creating asynchronous completion commands60770
-Node: Live preview62059
-Node: Contributions63151
-Node: Acknowledgments64063
-Node: Indices66613
-Node: Function index66851
-Node: Concept index70499
+Node: Editing8655
+Node: Register9511
+Node: Navigation11218
+Node: Search12461
+Node: Grep and Find14372
+Node: Compilation16648
+Node: Histories17324
+Node: Modes18544
+Node: Org Mode19024
+Node: Help19640
+Node: Miscellaneous20751
+Node: Special features22831
+Node: Live previews23960
+Node: Narrowing and grouping28089
+Node: Asynchronous search30092
+Node: Multiple sources33174
+Node: Embark integration37658
+Node: Configuration39853
+Node: Use-package example41003
+Node: Custom variables47484
+Node: Project support51283
+Node: Fine-tuning52548
+Node: Recommended packages55507
+Node: Bug reports57589
+Node: Hacking60670
+Node: Creating asynchronous completion commands60856
+Node: Live preview62145
+Node: Contributions63237
+Node: Acknowledgments64149
+Node: Indices66699
+Node: Function index66937
+Node: Concept index70585
 
 End Tag Table
 

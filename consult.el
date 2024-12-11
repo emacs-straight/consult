@@ -225,7 +225,8 @@ buffers.  The regular expressions are matched case sensitively."
     consult--source-file-register
     consult--source-bookmark
     consult--source-project-buffer-hidden
-    consult--source-project-recent-file-hidden)
+    consult--source-project-recent-file-hidden
+    consult--source-project-root-hidden)
   "Sources used by `consult-buffer'.
 See also `consult-project-buffer-sources'.
 See `consult--multi' for a description of the source data structure."
@@ -233,7 +234,8 @@ See `consult--multi' for a description of the source data structure."
 
 (defcustom consult-project-buffer-sources
   '(consult--source-project-buffer
-    consult--source-project-recent-file)
+    consult--source-project-recent-file
+    consult--source-project-root)
   "Sources used by `consult-project-buffer'.
 See also `consult-buffer-sources'.
 See `consult--multi' for a description of the source data structure."
@@ -826,12 +828,10 @@ asked for the directories or files to search via
      (or paths '("."))
      edir)))
 
-(declare-function project-current "project")
-(declare-function project-root "project")
-
 (defun consult--default-project-function (may-prompt)
   "Return project root directory.
 When no project is found and MAY-PROMPT is non-nil ask the user."
+  (declare-function project-root "project")
   (when-let (proj (project-current may-prompt))
     (project-root proj)))
 
@@ -844,6 +844,15 @@ When no project is found and MAY-PROMPT is non-nil ask the user."
     (when-let (root (and consult-project-function
                          (funcall consult-project-function may-prompt)))
       (expand-file-name root))))
+
+(defun consult--project-known-roots ()
+  "Return list of known project roots."
+  (let ((root (consult--project-root))
+        (dirs (sort (project-known-project-roots) #'string<)))
+    (when root
+      (setq root (abbreviate-file-name root)
+            dirs (cons root (delete root dirs))))
+    dirs))
 
 (defun consult--project-name (dir)
   "Return the project name for DIR."
@@ -2711,21 +2720,23 @@ KEYMAP is a command-specific keymap."
 (defun consult--multi-predicate (sources cand)
   "Predicate function called for each candidate CAND given SOURCES."
   (let* ((src (consult--multi-source sources cand))
-         (narrow (plist-get src :narrow))
-         (type (or (car-safe narrow) narrow -1)))
-    (or (eq consult--narrow type)
+         (narrow (or (plist-get src :narrow) -1)))
+    (or (pcase narrow
+          (`((,_ . ,_) . ,_) (assq consult--narrow narrow))
+          (`(,k . ,_) (eq consult--narrow k))
+          (k (eq consult--narrow k)))
         (not (or consult--narrow (plist-get src :hidden))))))
 
 (defun consult--multi-narrow (sources)
   "Return narrow list from SOURCES."
   (thread-last
     sources
-    (mapcar (lambda (src)
+    (mapcan (lambda (src)
               (when-let (narrow (plist-get src :narrow))
                 (if (consp narrow)
-                    narrow
+                    (if (consp (car narrow)) (append narrow nil) (list narrow))
                   (when-let (name (plist-get src :name))
-                    (cons narrow name))))))
+                    (list (cons narrow name)))))))
     (delq nil)
     (delete-dups)))
 
@@ -4025,8 +4036,6 @@ This command can act as a drop-in replacement for `repeat-complex-command'."
 
 ;;;;; Command: consult-history
 
-(declare-function ring-elements "ring")
-
 (defun consult--current-history ()
   "Return the history and index variable relevant to the current buffer.
 If the minibuffer is active, the minibuffer history is returned,
@@ -4066,6 +4075,7 @@ variable as argument.  INDEX is the name of the index variable to
 update, if any.  BOL is the function which jumps to the beginning
 of the prompt.  See also `cape-history' from the Cape package."
   (interactive)
+  (declare-function ring-elements "ring")
   (pcase-let* ((`(,history ,index ,bol) (if history
                                             (list history index bol)
                                           (consult--current-history)))
@@ -4476,7 +4486,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
      :history  bookmark-history
      :items    ,#'bookmark-all-names
      :state    ,#'consult--bookmark-state)
-  "Bookmark candidate source for `consult-buffer'.")
+  "Bookmark source for `consult-buffer'.")
 
 (defvar consult--source-project-buffer
   `( :name     "Project Buffer"
@@ -4492,7 +4502,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
           (consult--buffer-query :sort 'visibility
                                  :directory root
                                  :as #'consult--buffer-pair))))
-  "Project buffer candidate source for `consult-buffer'.")
+  "Project buffer source for `consult-buffer'.")
 
 (defvar consult--source-project-recent-file
   `( :name     "Project File"
@@ -4527,15 +4537,34 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
                   (when (equal part "") (setq part "./"))
                   (put-text-property 0 1 'multi-category `(file . ,file) part)
                   (push part items))))))))
-  "Project file candidate source for `consult-buffer'.")
+  "Project file source for `consult-buffer'.")
+
+(defvar consult--source-project-root
+  `( :name     "Project Root"
+     :narrow   ?r
+     :category file
+     :face     consult-file
+     :history  file-name-history
+     :action   ,(lambda (root)
+                  (let ((default-directory root))
+                    (call-interactively #'find-file)))
+     :items    ,#'consult--project-known-roots)
+  "Known project root source.")
 
 (defvar consult--source-project-buffer-hidden
-  `(:hidden t :narrow (?p . "Project") ,@consult--source-project-buffer)
+  `( :hidden t :narrow ((?p . "Project") (?B . "Project Buffer"))
+     ,@consult--source-project-buffer)
   "Like `consult--source-project-buffer' but hidden by default.")
 
 (defvar consult--source-project-recent-file-hidden
-  `(:hidden t :narrow (?p . "Project") ,@consult--source-project-recent-file)
+  `( :hidden t :narrow ((?p . "Project") (?F . "Project File"))
+     ,@consult--source-project-recent-file)
   "Like `consult--source-project-recent-file' but hidden by default.")
+
+(defvar consult--source-project-root-hidden
+  `( :hidden t :narrow ((?p . "Project") (?R . "Project Root"))
+     ,@consult--source-project-root)
+  "Like `consult--source-project-root' but hidden by default.")
 
 (defvar consult--source-hidden-buffer
   `( :name     "Hidden Buffer"
@@ -4549,7 +4578,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
      ,(lambda () (consult--buffer-query :sort 'visibility
                                         :filter 'invert
                                         :as #'consult--buffer-pair)))
-  "Hidden buffer candidate source for `consult-buffer'.")
+  "Hidden buffer source for `consult-buffer'.")
 
 (defvar consult--source-modified-buffer
   `( :name     "Modified Buffer"
@@ -4566,7 +4595,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
                                         (lambda (buf)
                                           (and (buffer-modified-p buf)
                                                (buffer-file-name buf))))))
-  "Modified buffer candidate source for `consult-buffer'.")
+  "Modified buffer source for `consult-buffer'.")
 
 (defvar consult--source-buffer
   `( :name     "Buffer"
@@ -4579,7 +4608,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
      :items
      ,(lambda () (consult--buffer-query :sort 'visibility
                                         :as #'consult--buffer-pair)))
-  "Buffer candidate source for `consult-buffer'.")
+  "Buffer source for `consult-buffer'.")
 
 (defun consult--file-register-p (reg)
   "Return non-nil if REG is a file register."
@@ -4617,7 +4646,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
                 (setq file (expand-file-name file))))
             (unless (gethash file ht)
               (push (consult--fast-abbreviate-file-name file) items))))))
-  "Recent file candidate source for `consult-buffer'.")
+  "Recent file source for `consult-buffer'.")
 
 ;;;###autoload
 (defun consult-buffer (&optional sources)
@@ -5158,15 +5187,15 @@ automatically previewed."
 ;;;;; Integration: Vertico
 
 (defvar vertico--input)
-(declare-function vertico--exhibit "ext:vertico")
-(declare-function vertico--candidate "ext:vertico")
 
 (defun consult--vertico-candidate ()
   "Return current candidate for Consult preview."
+  (declare-function vertico--candidate "ext:vertico")
   (and vertico--input (vertico--candidate 'highlight)))
 
 (defun consult--vertico-refresh ()
   "Refresh completion UI."
+  (declare-function vertico--exhibit "ext:vertico")
   (when vertico--input
     (setq vertico--input t)
     (vertico--exhibit)))
@@ -5183,11 +5212,10 @@ automatically previewed."
 
 ;;;;; Integration: Icomplete
 
-(defvar icomplete-mode)
-(declare-function icomplete-exhibit "icomplete")
-
 (defun consult--icomplete-refresh ()
   "Refresh icomplete view."
+  (defvar icomplete-mode)
+  (declare-function icomplete-exhibit "icomplete")
   (when icomplete-mode
     (let ((top (car completion-all-sorted-completions)))
       (completion--flush-all-sorted-completions)
