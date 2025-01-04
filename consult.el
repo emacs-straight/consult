@@ -1180,17 +1180,21 @@ if IGNORE-CASE is non-nil."
      regexp 'fixedcase 'literal)))
 
 (defun consult--default-regexp-compiler (input type ignore-case)
-  "Compile the INPUT string to a list of regular expressions.
-The function should return a pair, the list of regular expressions and a
-highlight function.  The highlight function should take a single
-argument, the string to highlight given the INPUT.  TYPE is the desired
-type of regular expression, which can be `basic', `extended', `emacs' or
-`pcre'.  If IGNORE-CASE is non-nil return a highlight function which
-matches case insensitively."
+  "Compile a string to a list of regular expressions.
+See `consult--compile-regexp' for INPUT, TYPE and IGNORE-CASE."
   (setq input (consult--split-escaped input))
   (cons (mapcar (lambda (x) (consult--convert-regexp x type)) input)
         (when-let (regexps (seq-filter #'consult--valid-regexp-p input))
           (apply-partially #'consult--highlight-regexps regexps ignore-case))))
+
+(defun consult--compile-regexp (input type ignore-case)
+  "Compile the INPUT string to a list of regular expressions.
+Return a pair, the list of regular expressions and a highlight function.
+The highlight function takes a single argument, the string to highlight
+given the INPUT.  TYPE is the desired type of regular expression, which
+can be `basic', `extended', `emacs' or `pcre'.  If IGNORE-CASE is
+non-nil the highlight function matches case insensitively."
+  (funcall consult--regexp-compiler input type ignore-case))
 
 (defun consult--split-escaped (str)
   "Split STR at spaces, which can be escaped with backslash."
@@ -1951,10 +1955,9 @@ determines the separator.  Examples: \"/async/filter\",
       (save-match-data
         (let ((q (regexp-quote (substring str 0 1))))
           (string-match (concat "^" q "\\([^" q "]*\\)\\(" q "\\)?") str)
-          `(,(match-string 1 str)
+          ;; Force update it two punctuation characters are entered.
+          `(,(propertize (match-string 1 str) 'consult--force (match-end 2))
             ,(match-end 0)
-            ;; Force update it two punctuation characters are entered.
-            ,(match-end 2)
             ;; List of highlights
             (0 . ,(match-beginning 1))
             ,@(and (match-end 2) `((,(match-beginning 2) . ,(match-end 2)))))))
@@ -1970,10 +1973,9 @@ PLIST is the splitter configuration, including the separator."
   (let ((sep (regexp-quote (char-to-string (plist-get plist :separator)))))
     (save-match-data
       (if (string-match (format "^\\([^%s]+\\)\\(%s\\)?" sep sep) str)
-          `(,(match-string 1 str)
+          ;; Force update if separator is entered.
+          `(,(propertize (match-string 1 str) 'consult--force (match-end 2))
             ,(match-end 0)
-            ;; Force update it space is entered.
-            ,(match-end 2)
             ;; List of highlights
             ,@(and (match-end 2) `((,(match-beginning 2) . ,(match-end 2)))))
         `(,str ,(length str))))))
@@ -2052,7 +2054,10 @@ BIND is the asynchronous function binding."
                   ;; asynchronous search right before exiting the minibuffer.
                   (fset hook (lambda (&rest _) (run-at-time 0 nil fun)))
                   (add-hook 'after-change-functions hook nil 'local)
-                  (funcall hook)))))
+                  ;; Immediately start asynchronous computation. This may lead
+                  ;; to problems unnecessary work if content is inserted shortly
+                  ;; afterwards.
+                  (funcall fun)))))
          (let ((,async (if (consult--async-p ,async) ,async (lambda (_) ,async))))
            (unwind-protect
                ,(macroexp-progn body)
@@ -2099,12 +2104,79 @@ string   Update with the current user input string.  Return nil."
          nil)
         ('nil candidates)
         ((pred consp)
-         (setq last (last (if last (setcdr last action) (setq candidates action))))
-         candidates)))))
+         ;; Lazily initialize last link, such that it is only initialized when
+         ;; appending, and not for one-shot async functions like
+         ;; `consult--dynamic-compute'.
+         (if (not candidates)
+             (setq candidates action)
+           (setq last (last (setcdr (or last (last candidates)) action)))
+           candidates))))))
+
+(defun consult--async-static (async items)
+  "Create async function with static ITEMS.
+ASYNC is the async sink."
+  (consult--dynamic-compute
+   async
+   (lambda (input)
+     (pcase-let* ((`(,re . ,hl) (consult--compile-regexp
+                                 input 'emacs completion-ignore-case)))
+       (if re
+           (let* ((completion-regexp-list re)
+                  (all (all-completions "" items)))
+             (cl-loop for s in-ref all do
+                      (funcall hl (setf s (copy-sequence s))))
+             all)
+         (copy-sequence items))))))
+
+(defun consult--async-merge-sink (sink tail idx)
+  "Create sink for the async sub-functions which merges the sub-lists.
+SINK is the candidate sink.
+TAIL is a vector of list tail links for each sub-list.
+IDX is the index of the corresponding link in TAIL."
+  (lambda (action)
+    ;; Ignore all actions except flush and append for now.
+    (pcase action
+      ('flush
+       ;; Flush items if sub-list exists.
+       (when-let ((tl (aref tail idx)) (pre t))
+         (let ((i idx)) (while (not (setq pre (aref tail (cl-decf i))))))
+         (setcdr pre (cdr tl))
+         (aset tail idx nil)
+         (funcall sink 'flush)
+         (funcall sink (cdr (aref tail 0)))))
+      ((pred consp)
+       (let ((tl (aref tail idx))
+             (last (last action))
+             pre)
+         (aset tail idx last)
+         (if tl ;; Append items if sub-list exists.
+             (progn
+               (setcdr last (cdr tl))
+               (setcdr tl action))
+           ;; Otherwise insert new sub-list.
+           (let ((i idx)) (while (not (setq pre (aref tail (cl-decf i))))))
+           (setcdr last (cdr pre))
+           (setcdr pre action))
+         (funcall sink 'flush)
+         (funcall sink (cdr (aref tail 0))))))))
+
+(defun consult--async-merge (sink funs)
+  "Create merged async function from multiple FUNS which drains into SINK."
+  (let* ((tail (make-vector (1+ (length funs)) nil))
+         (asyncs
+          (seq-map-indexed
+           (lambda (fun idx)
+             (funcall fun (consult--async-merge-sink sink tail (1+ idx))))
+           funs)))
+    (aset tail 0 (list nil)) ;; Guard element
+    (lambda (action)
+      (dolist (async asyncs)
+        (funcall async action))
+      (funcall sink action))))
 
 (defun consult--async-debug (async prefix)
-  "Create async function from ASYNC with debug messages.
-The messages are prefixed with PREFIX."
+  "Create async function with debug messages.
+ASYNC is the async sink. The messages are prefixed with PREFIX."
   (lambda (action)
     (consult--async-log "%s: %S\n" prefix action)
     (funcall async action)))
@@ -2124,6 +2196,25 @@ INITIAL is the additional initial string."
   (when-let (str (thing-at-point thing))
     (consult--async-split-initial str)))
 
+(defun consult--async-min-input (async &optional min-input)
+  "Create async function, which ensures a minimum input length.
+ASYNC is the async sink.
+MIN-INPUT is the minimum input length and defaults to
+`consult-async-min-input'."
+  (setq min-input (or min-input consult-async-min-input))
+  (lambda (action)
+    (if (stringp action)
+        (funcall async
+                 ;; Input can be marked with the `consult--force' property such
+                 ;; that it is passed through in any case.
+                 (if (or (and (not (equal action ""))
+                              (get-text-property 0 'consult--force action))
+                         (>= (length action) min-input))
+                     action
+                   ;; Pretend that there is no input
+                   ""))
+      (funcall async action))))
+
 (defun consult--async-split (async &optional split min-input)
   "Create async function, which splits the input string.
 ASYNC is the async sink.
@@ -2135,26 +2226,22 @@ MIN-INPUT is the minimum input length and defaults to
     (let* ((style (consult--async-split-style))
            (fn (plist-get style :function)))
       (setq split (lambda (str) (funcall fn str style)))))
-  (setq min-input (or min-input consult-async-min-input))
+  (unless (eq min-input 0)
+    (setq async (consult--async-min-input async min-input)))
   (lambda (action)
     (pcase action
       ('setup
        (consult--split-setup split)
        (funcall async 'setup))
       ((pred stringp)
-       (pcase-let ((`(,async-str ,_ ,force . ,highlights) (funcall split action))
+       (pcase-let ((`(,input ,_ . ,highlights) (funcall split action))
                    (end (minibuffer-prompt-end)))
          ;; Highlight punctuation characters
          (pcase-dolist (`(,x . ,y) highlights)
            (let ((x (+ end x)) (y (+ end y)))
              (put-text-property x y 'rear-nonsticky t)
              (add-face-text-property x y 'consult-async-split)))
-         (funcall async
-                  ;; Pass through if the input is long enough!
-                  (if (or force (>= (length async-str) min-input))
-                      async-str
-                    ;; Pretend that there is no input
-                    ""))))
+         (funcall async input)))
       (_ (funcall async action)))))
 
 (defun consult--async-indicator (async)
@@ -2163,14 +2250,14 @@ ASYNC is the async sink."
   (let ((ind (cl-loop for (k c f) in consult-async-indicator
                       collect (cons k (propertize (string c) 'face f))))
         ov)
-    (lambda (action &optional state)
+    (lambda (action)
       (pcase action
         ('setup (setq ov (make-overlay (- (minibuffer-prompt-end) 2)
                                        (- (minibuffer-prompt-end) 1)))
                 (funcall async 'setup))
         ('destroy (delete-overlay ov)
                   (funcall async 'destroy))
-        ('indicator (overlay-put ov 'display (alist-get state ind)))
+        (`[indicator ,state] (overlay-put ov 'display (alist-get state ind)))
         (_ (funcall async action))))))
 
 (defun consult--async-log (formatted &rest args)
@@ -2226,11 +2313,11 @@ PROPS are optional properties passed to `make-process'."
                           ((and (string-prefix-p "finished" event) (not (equal rest "")))
                            (cl-incf count)
                            (funcall async (list rest))))
-                         (funcall async 'indicator
-                                  (cond
-                                   ((string-prefix-p "killed" event)   'killed)
-                                   ((string-prefix-p "finished" event) 'finished)
-                                   (t 'failed)))
+                         (funcall async `[indicator
+                                          ,(cond
+                                            ((string-prefix-p "killed" event)   'killed)
+                                            ((string-prefix-p "finished" event) 'finished)
+                                            (t 'failed))])
                          (consult--async-log
                           "consult--async-process sentinel: event=%s lines=%d\n"
                           (string-trim event) count)
@@ -2246,7 +2333,7 @@ PROPS are optional properties passed to `make-process'."
                                           (buffer-substring-no-properties (pos-bol) (pos-eol)))))
                              (insert "<<<<< stderr <<<<<\n")))))
                       (process-adaptive-read-buffering nil))
-                 (funcall async 'indicator 'running)
+                 (funcall async [indicator running])
                  (consult--async-log "consult--async-process started: args=%S default-directory=%S\n"
                                      args default-directory)
                  (setq count 0
@@ -2271,23 +2358,27 @@ PROPS are optional properties passed to `make-process'."
          (funcall async action))
         (_ (funcall async action))))))
 
-(defun consult--async-highlight (async builder)
+(defun consult--async-highlight (async highlight)
   "Return a new ASYNC function with candidate highlighting.
-BUILDER is the command line builder function."
-  (let (highlight)
+HIGHLIGHT is a function called with the input string.  It should return
+a function which mutably adds highlighting to a candidate string.
+HIGHLIGHT can also return a pair where the second element is the actual
+highlight function."
+  (let (hl)
     (lambda (action)
       (cond
        ((stringp action)
-        (setq highlight (cdr (funcall builder action)))
+        (setq hl (funcall highlight action))
+        (unless (functionp hl) (setq hl (cdr hl)))
         (funcall async action))
-       ((and (consp action) highlight)
-        (mapc highlight action)
+       ((and (consp action) hl)
+        (mapc hl action)
         (funcall async action))
        (t (funcall async action))))))
 
 (defun consult--async-throttle (async &optional throttle debounce)
-  "Create async function from ASYNC which throttles input.
-
+  "Create async function which throttles input.
+ASYNC is the async sink.
 The THROTTLE delay defaults to `consult-async-input-throttle'.
 The DEBOUNCE delay defaults to `consult-async-input-debounce'."
   (setq throttle (or throttle consult-async-input-throttle)
@@ -2315,9 +2406,9 @@ The DEBOUNCE delay defaults to `consult-async-input-debounce'."
         (_ (funcall async action))))))
 
 (defun consult--async-refresh-immediate (async)
-  "Create async function from ASYNC, which refreshes the display.
-
-The refresh happens immediately when candidates are pushed."
+  "Create async function, which refreshes the display.
+ASYNC is the async sink.  The refresh happens immediately when
+candidates are pushed."
   (lambda (action)
     (pcase action
       ((or (pred consp) 'flush)
@@ -2326,9 +2417,9 @@ The refresh happens immediately when candidates are pushed."
       (_ (funcall async action)))))
 
 (defun consult--async-refresh-timer (async &optional delay)
-  "Create async function from ASYNC, which refreshes the display.
-
-The refresh happens after a DELAY, defaulting to `consult-async-refresh-delay'."
+  "Create async function, which refreshes the display with a timer.
+ASYNC is the async sink.  The refresh happens after a DELAY, defaulting
+to `consult-async-refresh-delay'."
   (let ((delay (or delay consult-async-refresh-delay))
         (timer (timer-create)))
     (timer-set-function timer async '(refresh))
@@ -2378,50 +2469,50 @@ highlighting function."
 
 ;;;; Dynamic collections based
 
-(defun consult--dynamic-compute (async fun &optional debounce min-input)
+(defun consult--dynamic-compute (async fun &optional restart)
   "Dynamic computation of candidates.
 ASYNC is the sink.
 FUN computes the candidates given the input.
-DEBOUNCE is the time after which an interrupted computation should be
-restarted and defaults to `consult-async-input-debounce'.
-MIN-INPUT is the minimal input length and defaults to
-`consult-async-min-input'."
-  (setq debounce (or debounce consult-async-input-debounce)
-        min-input (or min-input consult-async-min-input))
-  (let* ((request) (current) (timer)
-         (cancel (lambda () (when timer (cancel-timer timer) (setq timer nil))))
-         (start (lambda (req) (setq request req) (funcall async 'refresh))))
+RESTART is the time after which an interrupted computation should be
+restarted and defaults to `consult-async-input-debounce'."
+  (setq restart (or restart consult-async-input-debounce))
+  (let* ((current nil)
+         (timer nil)
+         (compute nil)
+         (cancel
+          (lambda ()
+            (when timer
+              (cancel-timer timer)
+              (setq timer nil)))))
+    (setq compute
+          (lambda (input)
+            (let ((state 'killed))
+              (unwind-protect
+                  (while-no-input
+                    (funcall async [indicator running])
+                    (redisplay)
+                    ;; Run computation
+                    (let ((response (funcall fun input)))
+                      ;; Flush and update candidate list
+                      (funcall async 'flush)
+                      (funcall async response)
+                      (funcall async 'refresh)
+                      (setq state 'finished current input)))
+                ;; If the computation was killed, restart it after some time.  This
+                ;; can happen when moving point around.  Then the input doesn't
+                ;; change and the computation isn't started again otherwise.
+                (when (eq state 'killed)
+                  (setq timer (run-at-time restart nil compute input)))
+                (funcall async `[indicator ,state])))))
     (lambda (action)
-      (pcase action
-        ((and 'nil (guard (not request)))
-         (funcall async nil))
-        ('nil
-         (funcall cancel)
-         (let ((state 'killed))
-           (unwind-protect
-               (progn
-                 (funcall async 'indicator 'running)
-                 (redisplay)
-                 ;; Run computation
-                 (let ((response (funcall fun request)))
-                   ;; Flush and update candidate list
-                   (funcall async 'flush)
-                   (setq state 'finished current request)
-                   (funcall async response)))
-             (funcall async 'indicator state)
-             ;; If the computation was killed, restart it after some time.
-             (when (eq state 'killed)
-               (setq timer (run-at-time debounce nil start request)))
-             (setq request nil))))
-        ((pred stringp)
-         (funcall cancel)
-         (if (or (length< action min-input) (equal action current))
-             (funcall async 'indicator 'finished)
-           (funcall start action)))
-        ((or 'destroy 'cancel)
-         (funcall cancel)
-         (funcall async action))
-        (_ (funcall async action))))))
+      (prog1 (funcall async action)
+        (pcase action
+          ((or 'cancel 'destroy) (funcall cancel))
+          ((pred stringp)
+           (funcall cancel)
+           (if (equal action current)
+               (funcall async [indicator finished])
+             (funcall compute action))))))))
 
 (defun consult--dynamic-collection (fun &optional debounce min-input)
   "Dynamic collection with input splitting.
@@ -2429,8 +2520,8 @@ See `consult--dynamic-compute' for the arguments FUN, DEBOUNCE and MIN-INPUT."
   (thread-first
     (consult--async-sink)
     (consult--async-indicator)
-    (consult--dynamic-compute fun debounce min-input)
-    (consult--async-throttle)
+    (consult--dynamic-compute fun)
+    (consult--async-throttle nil debounce)
     (consult--async-split nil min-input)))
 
 ;;;; Special keymaps
@@ -2799,38 +2890,56 @@ KEYMAP is a command-specific keymap."
       ;; Non-existing Tofu'ed candidate submitted, e.g., via Embark
       `(,(substring selected 0 -1) :match nil ,@(consult--multi-source sources selected)))))
 
-(defun consult--multi-candidates (sources)
-  "Return `consult--multi' candidates from SOURCES."
-  (let (candidates)
+(defun consult--multi-candidates (idx src &optional items)
+  "Create completion candidate strings from ITEMS.
+Attach source IDX and SRC properties to each item."
+  (when (plist-member src :items)
+    (setq items (plist-get src :items)
+          items (if (functionp items) (funcall items) items)))
+  (let ((face (plist-get src :face))
+        (cat (plist-get src :category)))
     (cl-loop
-     for src across sources for idx from 0 do
-     (let* ((face (and (plist-member src :face) `(face ,(plist-get src :face))))
-            (cat (plist-get src :category))
-            (items (plist-get src :items))
-            (items (if (functionp items) (funcall items) items)))
-       (dolist (item items)
-         (let* ((str (or (car-safe item) item))
-                (cand (consult--tofu-append str idx)))
-           ;; Preserve existing `multi-category' datum of the candidate.
-           (if (and (eq str item) (get-text-property 0 'multi-category str))
-               (when face (add-text-properties 0 (length str) face cand))
-             ;; Attach `multi-category' datum and face.
-             (add-text-properties
-              0 (length str)
-              `(multi-category (,cat . ,(or (cdr-safe item) item)) ,@face) cand))
-           (push cand candidates)))))
-    (nreverse candidates)))
+     for item in items collect
+     (let* ((str (or (car-safe item) item))
+            (len (length str))
+            (cand (consult--tofu-append str idx)))
+       ;; Preserve existing `multi-category' datum of the candidate.
+       (unless (and (eq str item) (get-text-property 0 'multi-category str))
+         (put-text-property 0 len 'multi-category (cons cat (or (cdr-safe item) item)) cand))
+       (when face
+         (add-face-text-property 0 len face t cand))
+       cand))))
+
+(defun consult--multi-async (sources)
+  "Return async table from multi SOURCES."
+  (thread-first
+    (consult--async-sink)
+    (consult--async-refresh-timer)
+    (consult--async-merge
+     (cl-loop
+      for idx from 0 for src across sources collect
+      (let ((idx idx) (src src))
+        (if-let ((async (plist-get src :async)))
+            (lambda (sink)
+              (funcall async (consult--async-transform
+                              sink consult--multi-candidates idx src)))
+          (let ((cands (consult--multi-candidates idx src)))
+            (lambda (sink) (consult--async-static sink cands)))))))
+    (consult--async-split nil 0)))
 
 (defun consult--multi-enabled-sources (sources)
   "Return vector of enabled SOURCES."
   (vconcat
-   (seq-filter (lambda (src)
-                 (if-let (pred (plist-get src :enabled))
-                     (funcall pred)
-                   t))
-               (mapcar (lambda (src)
-                         (if (symbolp src) (symbol-value src) src))
-                       sources))))
+   (cl-loop
+    for src in sources
+    if (progn
+         (setq src (if (symbolp src) (symbol-value src) src))
+         (unless (xor (plist-member src :async) (plist-member src :items))
+           (error "Source must specify either :items or :async"))
+         (unless (plist-get src :category)
+           (error "Source must specify a :category"))
+         (funcall (or (plist-get src :enabled) #'always)))
+    collect src)))
 
 (defun consult--multi-state (sources)
   "State function given SOURCES."
@@ -2866,6 +2975,14 @@ KEYMAP is a command-specific keymap."
              (when selected-fun
                (funcall selected-fun 'return cand)))))))))
 
+(defun consult--multi-table (sources)
+  "Create static or asynchronous completion table for SOURCES."
+  (consult--with-increased-gc
+   (if (cl-loop for src across sources thereis (plist-get src :async))
+       (consult--multi-async sources)
+     (cl-loop for idx from 0 for src across sources nconc
+              (consult--multi-candidates idx src)))))
+
 (defun consult--multi (sources &rest options)
   "Select from candidates taken from a list of SOURCES.
 
@@ -2888,6 +3005,10 @@ Required source fields:
   list of strings.  Note that the strings can use text properties
   to carry metadata, which is then available to the :annotate,
   :action and :state functions.
+* :async - Alternative to :items for asynchronous sources.  The function
+  receives an asynchronous sink as argument and should return a new
+  asynchronous function taking an action argument as documented by
+  `consult--async-sink'.
 
 Optional source fields:
 * :name - Name of the source as a string, used for narrowing,
@@ -2908,11 +3029,10 @@ Optional source fields:
   case.  Note that the source is returned by `consult--multi'
   together with the selected candidate."
   (let* ((sources (consult--multi-enabled-sources sources))
-         (candidates (consult--with-increased-gc
-                      (consult--multi-candidates sources)))
+         (table (consult--multi-table sources))
          (selected
           (apply #'consult--read
-                 candidates
+                 table
                  (append
                   options
                   (list
@@ -3364,9 +3484,7 @@ If TRANSFORM non-nil, return transformed CAND, otherwise return title."
   "Collect matching candidates from multiple buffers.
 INPUT is the user input which should be matched.
 BUFFERS is the list of buffers."
-  (pcase-let ((`(,regexps . ,hl)
-               (funcall consult--regexp-compiler
-                        input 'emacs completion-ignore-case))
+  (pcase-let ((`(,regexps . ,hl) (consult--compile-regexp input 'emacs completion-ignore-case))
               (candidates nil)
               (cand-idx 0))
     (when regexps
@@ -3383,10 +3501,10 @@ BUFFERS is the list of buffers."
                         (eol (pos-eol)))
                     (goto-char bol)
                     (when (and (not (looking-at-p "^\\s-*$"))
-                               (seq-every-p (lambda (r)
-                                              (goto-char bol)
-                                              (re-search-forward r eol t))
-                                            (cdr regexps)))
+                               (cl-loop for r in (cdr regexps) always
+                                        (progn
+                                          (goto-char bol)
+                                          (re-search-forward r eol t))))
                       (push (consult--location-candidate
                              (funcall hl (buffer-substring-no-properties bol eol))
                              (cons buf bol) (1- line) cand-idx)
@@ -4853,7 +4971,7 @@ input."
             (cons (append cmd (list "-e" arg) opts paths)
                   (apply-partially #'consult--highlight-regexps
                                    (list (regexp-quote arg)) ignore-case))
-          (pcase-let ((`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
+          (pcase-let ((`(,re . ,hl) (consult--compile-regexp arg type ignore-case)))
             (when re
               (cons (append cmd
                             (list (if (eq type 'pcre) "-P" "-E") ;; perl or extended
@@ -4920,7 +5038,7 @@ The symbol at point is added to the future history."
             (cons (append cmd (list "-e" arg) opts paths)
                   (apply-partially #'consult--highlight-regexps
                                    (list (regexp-quote arg)) ignore-case))
-          (pcase-let ((`(,re . ,hl) (funcall consult--regexp-compiler arg 'extended ignore-case)))
+          (pcase-let ((`(,re . ,hl) (consult--compile-regexp arg 'extended ignore-case)))
             (when re
               (cons (append cmd
                             (cdr (mapcan (lambda (x) (list "--and" "-e" x)) re))
@@ -4954,7 +5072,7 @@ See `consult-grep' for details."
             (cons (append cmd (list "-e" arg) opts paths)
                   (apply-partially #'consult--highlight-regexps
                                    (list (regexp-quote arg)) ignore-case))
-          (pcase-let ((`(,re . ,hl) (funcall consult--regexp-compiler arg type ignore-case)))
+          (pcase-let ((`(,re . ,hl) (consult--compile-regexp arg type ignore-case)))
             (when re
               (cons (append cmd (and (eq type 'pcre) '("-P"))
                             (list "-e" (consult--join-regexps re type))
@@ -5003,7 +5121,7 @@ INITIAL is initial input."
     (lambda (input)
       (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
                    ;; ignore-case=t since -iregex is used below
-                   (`(,re . ,hl) (funcall consult--regexp-compiler arg type t)))
+                   (`(,re . ,hl) (consult--compile-regexp arg type t)))
         (when re
           (cons (append cmd
                         (cdr (mapcan
@@ -5048,7 +5166,7 @@ regarding the asynchronous search and the arguments."
             (cons (append cmd (list arg) opts paths)
                   (apply-partially #'consult--highlight-regexps
                                    (list (regexp-quote arg)) ignore-case))
-          (pcase-let ((`(,re . ,hl) (funcall consult--regexp-compiler arg 'pcre ignore-case)))
+          (pcase-let ((`(,re . ,hl) (consult--compile-regexp arg 'pcre ignore-case)))
             (when re
               (cons (append cmd
                             (mapcan (lambda (x) `("--and" ,x)) re)
@@ -5095,7 +5213,7 @@ details regarding the asynchronous search."
 (defun consult--man-builder (input)
   "Build command line from INPUT."
   (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
-               (`(,re . ,hl) (funcall consult--regexp-compiler arg 'extended t)))
+               (`(,re . ,hl) (consult--compile-regexp arg 'extended t)))
     (when re
       (cons (append (consult--build-args consult-man-args)
                     (list (consult--join-regexps re 'extended))
