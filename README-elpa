@@ -655,10 +655,12 @@ Table of Contents
   │     :action   ,#'consult--bookmark-action))
   └────
 
-  Required source fields:
-  • `:category' Completion category.
+  Either the `:items' or the `:async' source field is required:
   • `:items' List of strings to select from or function returning list
-    of strings.  A list of cons cells is not supported.
+    of strings.  The strings can carry metadata in text properties,
+    which is then available to the :annotate, :action and :state
+    functions. The list can also consist of pairs, with the string in
+    the `car' used for display and the `cdr' the actual candidate.
   • `:async' Alternative to `:items' for asynchronous sources. See the
     docstring for details.
 
@@ -666,6 +668,7 @@ Table of Contents
   • `:name' Name of the source, used for narrowing, group titles and
     annotations.
   • `:narrow' Narrowing character or `(character . string)' pair.
+  • `:category' Completion category.
   • `:preview-key' Preview key or keys which trigger preview.
   • `:enabled' Function which must return t if the source is enabled.
   • `:hidden' When t candidates of this source are hidden by default.

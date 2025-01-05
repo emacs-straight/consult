@@ -141,7 +141,7 @@ This applies to asynchronous commands, e.g., `consult-grep'."
   :type '(alist :key-type symbol :value-type plist))
 
 (defcustom consult-async-indicator
-  `((running  ?*  consult-async-running)
+  '((running  ?*  consult-async-running)
     (finished ?:  consult-async-finished)
     (killed   ?\; consult-async-failed)
     (failed   ?!  consult-async-failed))
@@ -772,9 +772,11 @@ network file systems."
       (when (string-match "\\`/\\([^/|:]+:\\)" file)
         (setq prefix (propertize (match-string 1 file) 'face 'error)
               file (substring file (match-end 0))))
-      (when (and (string-match "/\\([^/]+\\)/\\([^/]+\\)\\'" file)
-                 (< (- (match-end 0) (match-beginning 0) -3) (length file)))
-        (setq file (format "…/%s/%s" (match-string 1 file) (match-string 2 file))))
+      (when (string-match "/\\([^/]+\\)/\\([^/]+\\)\\'" file)
+        (let* ((fst (truncate-string-to-width (match-string 1 file) 20 nil nil "…"))
+               (snd (truncate-string-to-width (match-string 2 file) 20 nil nil "…"))
+               (trunc (format "…/%s/%s" fst snd)))
+          (setq file (if (< (length trunc) (length file)) trunc file))))
       (concat prefix file))))
 
 (defun consult--directory-prompt (prompt dir)
@@ -1994,8 +1996,10 @@ PLIST is the splitter configuration, including the separator."
                                                     (max 0 (- point pos)))
                     ('t t)
                     (`(,newstr . ,newpt)
-                     (cons (concat (substring str 0 pos) newstr)
-                           (+ pos newpt)))))))
+                     (setq newstr (concat (substring str 0 pos) newstr))
+                     (if (eq (cadr (funcall split newstr)) pos)
+                         (cons newstr (+ pos newpt))
+                       (cons str point)))))))
          (all (lambda (str table pred point)
                 (let ((completion-styles styles)
                       (completion-category-defaults catdef)
@@ -2128,14 +2132,20 @@ ASYNC is the async sink."
              all)
          (copy-sequence items))))))
 
-(defun consult--async-merge-sink (sink tail idx)
+(defun consult--async-merge-sink (sink indicator tail idx)
   "Create sink for the async sub-functions which merges the sub-lists.
 SINK is the candidate sink.
+INDICATOR is a vector of indicator symbols.
 TAIL is a vector of list tail links for each sub-list.
 IDX is the index of the corresponding link in TAIL."
   (lambda (action)
-    ;; Ignore all actions except flush and append for now.
     (pcase action
+      (`[indicator ,state]
+       (aset indicator (1- idx) state)
+       (let* ((severity [nil finished running killed failed])
+              (state (aref severity (cl-loop for i across indicator maximize
+                                             (or (seq-position severity i) 0)))))
+         (funcall sink `[indicator ,state])))
       ('flush
        ;; Flush items if sub-list exists.
        (when-let ((tl (aref tail idx)) (pre t))
@@ -2162,11 +2172,12 @@ IDX is the index of the corresponding link in TAIL."
 
 (defun consult--async-merge (sink funs)
   "Create merged async function from multiple FUNS which drains into SINK."
-  (let* ((tail (make-vector (1+ (length funs)) nil))
+  (let* ((indicator (make-vector (length funs)  nil))
+         (tail (make-vector (1+ (length indicator)) nil))
          (asyncs
           (seq-map-indexed
            (lambda (fun idx)
-             (funcall fun (consult--async-merge-sink sink tail (1+ idx))))
+             (funcall fun (consult--async-merge-sink sink indicator tail (1+ idx))))
            funs)))
     (aset tail 0 (list nil)) ;; Guard element
     (lambda (action)
@@ -2181,20 +2192,30 @@ ASYNC is the async sink. The messages are prefixed with PREFIX."
     (consult--async-log "%s: %S\n" prefix action)
     (funcall async action)))
 
-(defun consult--async-split-style ()
-  "Return the async splitting style function and initial string."
-  (or (alist-get consult-async-split-style consult-async-split-styles-alist)
-      (user-error "Splitting style `%s' not found" consult-async-split-style)))
-
 (defun consult--async-split-initial (initial)
-  "Return initial string for async command.
-INITIAL is the additional initial string."
-  (concat (plist-get (consult--async-split-style) :initial) initial))
+  "Deprecated function, return INITIAL unchanged."
+  initial)
+(make-obsolete 'consult--async-split-initial "Not needed anymore, use INITIAL string directly." "1.9")
 
 (defun consult--async-split-thingatpt (thing)
-  "Return THING at point with async initial prefix."
-  (when-let (str (thing-at-point thing))
-    (consult--async-split-initial str)))
+  "Deprecated function, return THING at point."
+  (thing-at-point thing))
+(make-obsolete 'consult--async-split-thingatpt "Not needed anymore, use `thing-at-point' instead." "1.9")
+
+(defun consult--async-predicate (async pred)
+  "Create async function, running only if PRED is non-nil.
+ASYNC is the async sink."
+  (let (input)
+    (lambda (action)
+      (prog1 (and (not (stringp action))
+                  (funcall async action))
+        (pcase action
+          ('setup (setq pred (consult--in-buffer pred)))
+          ((or 'cancel 'destroy) (setq input nil))
+          ((pred stringp) (setq input action)))
+        (when (and input (funcall pred))
+          (funcall async input)
+          (setq input nil))))))
 
 (defun consult--async-min-input (async &optional min-input)
   "Create async function, which ensures a minimum input length.
@@ -2211,35 +2232,39 @@ MIN-INPUT is the minimum input length and defaults to
                               (get-text-property 0 'consult--force action))
                          (>= (length action) min-input))
                      action
-                   ;; Pretend that there is no input
-                   ""))
+                   'cancel))
       (funcall async action))))
 
-(defun consult--async-split (async &optional split min-input)
+(defun consult--async-split (async &optional style min-input)
   "Create async function, which splits the input string.
 ASYNC is the async sink.
-SPLIT is the splitting function and defaults to the splitting style
+STYLE is the splitting style and defaults to the splitting style
 configured by `consult-async-split-style'.
 MIN-INPUT is the minimum input length and defaults to
 `consult-async-min-input'."
-  (unless split
-    (let* ((style (consult--async-split-style))
-           (fn (plist-get style :function)))
-      (setq split (lambda (str) (funcall fn str style)))))
+  (setq style (or style consult-async-split-style)
+        style (or (alist-get style consult-async-split-styles-alist)
+                  (user-error "Splitting style `%s' not found" style)))
   (unless (eq min-input 0)
     (setq async (consult--async-min-input async min-input)))
   (lambda (action)
     (pcase action
       ('setup
-       (consult--split-setup split)
+       (consult--split-setup (let ((fun (plist-get style :function)))
+                               (lambda (str) (funcall fun str style))))
+       (when-let ((initial (plist-get style :initial)))
+         (save-excursion
+           (goto-char (minibuffer-prompt-end))
+           (insert-before-markers initial)))
        (funcall async 'setup))
       ((pred stringp)
-       (pcase-let ((`(,input ,_ . ,highlights) (funcall split action))
+       (pcase-let ((`(,input ,_ . ,highlights)
+                    (funcall (plist-get style :function) action style))
                    (end (minibuffer-prompt-end)))
          ;; Highlight punctuation characters
          (pcase-dolist (`(,x . ,y) highlights)
            (let ((x (+ end x)) (y (+ end y)))
-             (put-text-property x y 'rear-nonsticky t)
+             (add-text-properties x y '(consult--split t rear-nonsticky t))
              (add-face-text-property x y 'consult-async-split)))
          (funcall async input)))
       (_ (funcall async action)))))
@@ -2383,7 +2408,7 @@ The THROTTLE delay defaults to `consult-async-input-throttle'.
 The DEBOUNCE delay defaults to `consult-async-input-debounce'."
   (setq throttle (or throttle consult-async-input-throttle)
         debounce (or debounce consult-async-input-debounce))
-  (let* ((input nil) (timer (timer-create)) (last 0))
+  (let ((timer (timer-create)) (last 0) initial-p input)
     (lambda (action)
       (pcase action
         ((pred stringp)
@@ -2396,10 +2421,20 @@ The DEBOUNCE delay defaults to `consult-async-input-debounce'."
            (timer-set-time
             timer
             (timer-relative-time
-             nil (if input (max debounce (- (+ last throttle) (float-time))) 0)))
+             ;; Debounce only if the user entered new input.  Start
+             ;; immediately if the minibuffer contains initial input.
+             nil (max (if (funcall initial-p) 0 debounce)
+                      (- (+ last throttle) (float-time)))))
            (setq input action)
            (timer-activate timer))
          nil)
+        ('setup
+         (setq initial-p
+               (consult--in-buffer
+                (let ((initial (minibuffer-contents-no-properties)))
+                  (lambda ()
+                    (equal initial (minibuffer-contents-no-properties))))))
+         (funcall async action))
         ((or 'cancel 'destroy)
          (cancel-timer timer)
          (funcall async action))
@@ -2558,21 +2593,31 @@ Note that `consult-narrow-key' and `consult-widen-key' are bound dynamically."
 (defun consult--add-history (async items)
   "Add ITEMS to the minibuffer future history.
 ASYNC must be non-nil for async completion functions."
-  (delete-dups
-   (append
-    ;; the defaults are at the beginning of the future history
-    (ensure-list minibuffer-default)
-    ;; then our custom items
-    (remove "" (remq nil (ensure-list items)))
-    ;; Add all the completions for non-async commands.  For async commands this
-    ;; feature is not useful, since if one selects a completion candidate, the
-    ;; async search is restarted using that candidate string.  This usually does
-    ;; not yield a desired result since the async input uses a special format,
-    ;; e.g., `#grep#filter'.
-    (unless async
-      (all-completions ""
-                       minibuffer-completion-table
-                       minibuffer-completion-predicate)))))
+  (setq items
+        (delete-dups
+         (append
+          ;; Defaults are at the beginning of the future history
+          (ensure-list minibuffer-default)
+          ;; Custom items
+          (remove "" (remq nil (ensure-list items)))
+          ;; Add all completions for non-async commands.  For async commands
+          ;; this feature is not useful, since if one selects a completion
+          ;; candidate, the async search is restarted using that candidate
+          ;; string.  This usually does not yield a desired result since the
+          ;; async input uses a special format, e.g., `#grep#filter'.
+          (unless async
+            (all-completions "" minibuffer-completion-table
+                             minibuffer-completion-predicate)))))
+  ;; Prefix all items with the initial input from the async split style.
+  (when (and async (get-text-property (minibuffer-prompt-end) 'consult--split))
+    (let* ((beg (minibuffer-prompt-end))
+           (end (or (text-property-any beg (point-max) 'consult--split nil)
+                    (point-max)))
+           (pre (buffer-substring beg end)))
+      (cl-loop for item in-ref items do
+               (unless (string-prefix-p pre item)
+                 (setf item (concat pre item))))))
+  items)
 
 (defun consult--setup-keymap (keymap async narrow preview-key)
   "Setup minibuffer keymap.
@@ -2810,15 +2855,17 @@ KEYMAP is a command-specific keymap."
   "Lookup source for CAND in SOURCES list."
   (aref sources (consult--tofu-get cand)))
 
+(defsubst consult--multi-visible-p (src)
+  "Is SRC visible according to `consult--narrow'?"
+  (if-let ((n consult--narrow))
+      (pcase (plist-get src :narrow)
+        ((and ks `((,_ . ,_) . ,_)) (assq n ks))
+        ((or `(,k . ,_) k) (eq n k)))
+    (not (plist-get src :hidden))))
+
 (defun consult--multi-predicate (sources cand)
   "Predicate function called for each candidate CAND given SOURCES."
-  (let* ((src (consult--multi-source sources cand))
-         (narrow (or (plist-get src :narrow) -1)))
-    (or (pcase narrow
-          (`((,_ . ,_) . ,_) (assq consult--narrow narrow))
-          (`(,k . ,_) (eq consult--narrow k))
-          (k (eq consult--narrow k)))
-        (not (or consult--narrow (plist-get src :hidden))))))
+  (consult--multi-visible-p (consult--multi-source sources cand)))
 
 (defun consult--multi-narrow (sources)
   "Return narrow list from SOURCES."
@@ -2897,7 +2944,7 @@ Attach source IDX and SRC properties to each item."
     (setq items (plist-get src :items)
           items (if (functionp items) (funcall items) items)))
   (let ((face (plist-get src :face))
-        (cat (plist-get src :category)))
+        (cat (or (plist-get src :category) 'general)))
     (cl-loop
      for item in items collect
      (let* ((str (or (car-safe item) item))
@@ -2915,16 +2962,23 @@ Attach source IDX and SRC properties to each item."
   (thread-first
     (consult--async-sink)
     (consult--async-refresh-timer)
+    (consult--async-indicator)
     (consult--async-merge
      (cl-loop
       for idx from 0 for src across sources collect
-      (let ((idx idx) (src src))
+      (let ((idx idx) (src src)
+            (pred (apply-partially #'consult--multi-visible-p src)))
         (if-let ((async (plist-get src :async)))
             (lambda (sink)
-              (funcall async (consult--async-transform
-                              sink consult--multi-candidates idx src)))
+              (consult--async-predicate
+               (funcall async (consult--async-transform
+                               sink consult--multi-candidates idx src))
+               pred))
           (let ((cands (consult--multi-candidates idx src)))
-            (lambda (sink) (consult--async-static sink cands)))))))
+            (lambda (sink)
+              (consult--async-predicate
+               (consult--async-static sink cands)
+               pred)))))))
     (consult--async-split nil 0)))
 
 (defun consult--multi-enabled-sources (sources)
@@ -2936,8 +2990,6 @@ Attach source IDX and SRC properties to each item."
          (setq src (if (symbolp src) (symbol-value src) src))
          (unless (xor (plist-member src :async) (plist-member src :items))
            (error "Source must specify either :items or :async"))
-         (unless (plist-get src :category)
-           (error "Source must specify a :category"))
          (funcall (or (plist-get src :enabled) #'always)))
     collect src)))
 
@@ -2975,8 +3027,8 @@ Attach source IDX and SRC properties to each item."
              (when selected-fun
                (funcall selected-fun 'return cand)))))))))
 
-(defun consult--multi-table (sources)
-  "Create static or asynchronous completion table for SOURCES."
+(defun consult--multi-collection (sources)
+  "Create static or asynchronous completion function from SOURCES."
   (consult--with-increased-gc
    (if (cl-loop for src across sources thereis (plist-get src :async))
        (consult--multi-async sources)
@@ -2999,12 +3051,12 @@ candidate has been created.  The sources of the source list can either be
 symbols of source variables or source values.  Source values must be
 plists with fields from the following list.
 
-Required source fields:
-* :category - Completion category symbol.
-* :items - List of strings to select from or function returning
-  list of strings.  Note that the strings can use text properties
-  to carry metadata, which is then available to the :annotate,
-  :action and :state functions.
+Either the :items or the :async source field is required:
+* :items - List of strings to select from or function returning list of
+  strings.  The strings can carry metadata in text properties, which is
+  then available to the :annotate, :action and :state functions.  The
+  list can also consist of pairs, with the string in the `car' used for
+  display and the `cdr' the actual candidate.
 * :async - Alternative to :items for asynchronous sources.  The function
   receives an asynchronous sink as argument and should return a new
   asynchronous function taking an action argument as documented by
@@ -3014,6 +3066,7 @@ Optional source fields:
 * :name - Name of the source as a string, used for narrowing,
   group titles and annotations.
 * :narrow - Narrowing character or (character . string) pair.
+* :category - Completion category symbol.
 * :enabled - Function which must return t if the source is enabled.
 * :hidden - When t candidates of this source are hidden by default.
 * :face - Face used for highlighting the candidates.
@@ -3029,10 +3082,10 @@ Optional source fields:
   case.  Note that the source is returned by `consult--multi'
   together with the selected candidate."
   (let* ((sources (consult--multi-enabled-sources sources))
-         (table (consult--multi-table sources))
+         (collection (consult--multi-collection sources))
          (selected
           (apply #'consult--read
-                 table
+                 collection
                  (append
                   options
                   (list
@@ -3537,16 +3590,13 @@ to `consult--buffer-query'."
      :sort nil
      :require-match t
      ;; Always add last Isearch string to future history
-     :add-history (mapcar #'consult--async-split-initial
-                          (delq nil (list (thing-at-point 'symbol)
-                                          isearch-string)))
+     :add-history (delq nil (list (thing-at-point 'symbol) isearch-string))
      :history '(:input consult--line-multi-history)
      :lookup #'consult--line-multi-match
      ;; Add `isearch-string' as initial input if starting from Isearch
-     :initial (consult--async-split-initial
-               (or initial
-                   (and isearch-mode
-                        (prog1 isearch-string (isearch-done)))))
+     :initial (or initial
+                  (and isearch-mode
+                       (prog1 isearch-string (isearch-done))))
      :state (consult--location-state (lambda () (funcall collection nil)))
      :group #'consult--line-multi-group)))
 
@@ -4663,8 +4713,7 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
               (when (and (not (gethash file ht)) (string-prefix-p root file))
                 (let ((part (substring file len)))
                   (when (equal part "") (setq part "./"))
-                  (put-text-property 0 1 'multi-category `(file . ,file) part)
-                  (push part items))))))))
+                  (push (cons part file) items))))))))
   "Project file source for `consult-buffer'.")
 
 (defvar consult--source-project-root
@@ -4945,8 +4994,8 @@ input."
      :prompt prompt
      :lookup #'consult--lookup-member
      :state (consult--grep-state)
-     :initial (consult--async-split-initial initial)
-     :add-history (consult--async-split-thingatpt 'symbol)
+     :initial initial
+     :add-history (thing-at-point 'symbol)
      :require-match t
      :category 'consult-grep
      :group #'consult--prefix-group
@@ -5105,8 +5154,8 @@ INITIAL is initial input."
    :prompt prompt
    :sort nil
    :require-match t
-   :initial (consult--async-split-initial initial)
-   :add-history (consult--async-split-thingatpt 'filename)
+   :initial initial
+   :add-history (thing-at-point 'filename)
    :category 'file
    :history '(:input consult--find-history)))
 
@@ -5255,8 +5304,8 @@ the asynchronous search."
         :require-match t
         :category 'consult-man
         :lookup (apply-partially #'consult--lookup-prop 'consult-man)
-        :initial (consult--async-split-initial initial)
-        :add-history (consult--async-split-thingatpt 'symbol)
+        :initial initial
+        :add-history (thing-at-point 'symbol)
         :history '(:input consult--man-history))))
 
 ;;;; Preview at point in completions buffers
