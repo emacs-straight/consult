@@ -530,7 +530,10 @@ as the public API.")
         #'consult--default-completion-list-candidate)
   "Get candidate from completion system.")
 
-(defvar consult--completion-refresh-hook nil
+;; Redisplay such that the updated completion UI will be displayed, even when
+;; the update happened due to `accept-process-output' inside a loop of a dynamic
+;; collection. See `consult--async-dynamic'.
+(defvar consult--completion-refresh-hook '(redisplay)
   "Refresh completion system.")
 
 (defvar-local consult--preview-function nil
@@ -1287,6 +1290,12 @@ Return the location marker."
 
 ;;;; Preview support
 
+(defun consult--preview-rename-buffer (buf &optional name)
+  "Rename BUF to the preview buffer name convention.
+NAME defaults to `buffer-name'."
+  (with-current-buffer buf
+    (rename-buffer (concat " Preview:" (or name (buffer-name))) 'unique)))
+
 (defun consult--preview-allowed-p (fun)
   "Return non-nil if FUN is an allowed preview mode hook."
   (or (memq fun consult-preview-allowed-hooks)
@@ -1449,11 +1458,8 @@ ORIG is the original function, HOOKS the arguments."
                  ;; and `dired-directory' to nil and rename the buffer.  This
                  ;; lets us open an already previewed buffer with the Embark
                  ;; default action C-. RET.
-                 (with-current-buffer buf
-                   (rename-buffer
-                    (format " Preview:%s"
-                            (file-name-nondirectory (directory-file-name name)))
-                    'unique))
+                 (consult--preview-rename-buffer
+                  buf (file-name-nondirectory (directory-file-name name)))
                  ;; The buffer disassociation is delayed to avoid breaking modes
                  ;; like `pdf-view-mode' or `doc-view-mode' which rely on
                  ;; `buffer-file-name'.  Executing (set-visited-file-name nil)
@@ -2042,8 +2048,12 @@ which describes the updated API."
   "Use `consult--async-refresh' instead.")
 (define-obsolete-function-alias 'consult--async-refresh-immediate #'consult--async-deprecation
   "Use `consult--async-refresh' instead.")
+(define-obsolete-function-alias 'consult--dynamic-compute #'consult--async-deprecation
+  "Use `consult--async-dynamic' instead.")
+(define-obsolete-function-alias 'consult--async-command #'consult--async-deprecation
+  "Use `consult--process-collection' instead.")
 
-(defmacro consult--async-pipeline (&rest async)
+(defun consult--async-pipeline (&rest async)
   "Compose ASYNC pipeline.
 
 An async function must accept a single SINK argument and return a
@@ -2065,20 +2075,29 @@ from the user.
       (consult--async-transform #\\='consult--man-format)
       (consult--async-highlight #\\='consult--man-builder))
 
+Nil functions are ignored to ease building conditional pipelines.
+
+    (consult--async-pipeline
+     (consult--async-min-input min-input)
+     (consult--async-throttle throttle debounce)
+     (consult--async-dynamic fun)
+     transform
+     (and highlight (consult--async-highlight highlight)))
+
 Async functions or pipelines can be passed as completion function to
 `consult--read' or used as `:async' field of `consult--multi' sources as
 shown in these examples:
 
     (consult--read (consult--async-pipeline ...))
     (consult--read (consult--dynamic-collection (lambda (input) ...)))
-    (consult--read (consult--async-command #\\='consult--man-builder))
+    (consult--read (consult--process-collection #\\='consult--man-builder))
 
     (defvar async-source
       (list :async (consult--async-pipeline ...)))
     (defvar dynamic-source
       (list :async (consult--dynamic-collection (lambda (input) ...))))
     (defvar command-source
-      (list :async (consult--async-command #\\='consult--man-builder)))
+      (list :async (consult--process-collection #\\='consult--man-builder)))
 
 Incoming candidates and the action argument should be passed to the
 sink.  The action can take the following forms:
@@ -2095,13 +2114,13 @@ string   Update with the current user input string.  Return nil.
 For the \\='setup action it is guaranteed that the call originates from
 the minibuffer.  For the other actions no assumption about the context
 can be made."
-  (cl-with-gensyms (sink)
-    `(lambda (,sink)
-       ,(seq-reduce (lambda (s f) `(funcall ,f ,s))
-                    (reverse async) sink))))
+  (lambda (sink)
+    (seq-reduce (lambda (s f) (funcall f s)) (delq nil (reverse async)) sink)))
 
 (defun consult--async-wrap (async)
-  "Wrap ASYNC function with the default pipeline."
+  "Wrap ASYNC function with the default pipeline.
+The default pipeline provides `consult--async-split',
+`consult--async-indicator' and `consult--async-refresh'."
   (consult--async-pipeline
    (consult--async-split)
    async
@@ -2187,15 +2206,69 @@ ASYNC is the asynchronous function or completion table."
         ((pred consp)
          ;; Lazily initialize last link, such that it is only initialized when
          ;; appending, and not for one-shot async functions like
-         ;; `consult--dynamic-compute'.
+         ;; `consult--async-static'.
          (if (not candidates)
              (setq candidates action)
            (setq last (last (setcdr (or last (last candidates)) action)))
            candidates))))))
 
+(defun consult--async-dynamic (fun &optional restart)
+  "Dynamic computation of candidates.
+FUN computes the candidates.  It takes either a single input argument or
+an input argument and a callback function, if computed candidates should
+be updated incrementally.
+RESTART is the time after which an interrupted computation should be
+restarted and defaults to `consult-async-input-debounce'."
+  (setq restart (or restart consult-async-input-debounce))
+  (when (equal (func-arity fun) '(1 . 1))
+    (let ((orig fun))
+      (setq fun (lambda (input callback)
+                  (funcall callback (funcall orig input))))))
+  (lambda (sink)
+    (let ((timer (timer-create)) (current nil) (compute nil))
+      (setq compute
+            (lambda (input)
+              (funcall sink [indicator running])
+              (redisplay)
+              (let* ((flush t)
+                     (killed
+                      (while-no-input
+                        (funcall
+                         fun input
+                         (lambda (response)
+                           (let (throw-on-input)
+                             (when flush
+                               (funcall sink 'flush)
+                               (setq flush nil))
+                             (when response
+                               (funcall sink response)
+                               ;; Accept process input such that timers
+                               ;; trigger and refresh the completion UI.
+                               (accept-process-output)))))
+                        (setq current input)
+                        nil)))
+                (funcall sink `[indicator ,(if killed 'killed 'finished)])
+                (funcall sink 'refresh)
+                ;; If the computation was killed, restart it after a while.
+                ;; This happens when the point is moved.  Then the input does
+                ;; not change and the computation is not restarted otherwise.
+                (when killed
+                  (timer-set-function timer compute (list input))
+                  (timer-set-time timer (timer-relative-time nil restart))
+                  (timer-activate timer)))))
+      (lambda (action)
+        (prog1 (funcall sink action)
+          (pcase action
+            ((or 'cancel 'destroy) (cancel-timer timer))
+            ((pred stringp)
+             (cancel-timer timer)
+             (if (equal action current)
+                 (funcall sink [indicator finished])
+               (funcall compute action)))))))))
+
 (defun consult--async-static (items)
   "Async function with static ITEMS."
-  (consult--dynamic-compute
+  (consult--async-dynamic
    (lambda (input)
      (pcase-let* ((`(,re . ,hl) (consult--compile-regexp
                                  input 'emacs completion-ignore-case)))
@@ -2292,14 +2365,12 @@ MIN-INPUT is the minimum input length and defaults to
   (lambda (sink)
     (lambda (action)
       (if (stringp action)
-          (funcall sink
-                   ;; Input can be marked with the `consult--force' property such
-                   ;; that it is passed through in any case.
-                   (if (or (and (not (equal action ""))
-                                (get-text-property 0 'consult--force action))
-                           (>= (length action) min-input))
-                       action
-                     'cancel))
+          ;; Input can be marked with the `consult--force' property such that it
+          ;; is passed through in any case.
+          (funcall sink (if (or (and (not (equal action ""))
+                                     (get-text-property 0 'consult--force action))
+                                (>= (length action) min-input))
+                       action 'cancel))
         (funcall sink action)))))
 
 (defun consult--async-split (&optional style)
@@ -2453,25 +2524,24 @@ PROPS are optional properties passed to `make-process'."
            (funcall sink action))
           (_ (funcall sink action)))))))
 
-(defun consult--async-highlight (highlight)
+(defun consult--async-highlight (&optional highlight)
   "Async function with candidate highlighting.
 HIGHLIGHT is a function called with the input string.  It should return
 a function which mutably adds highlighting to a candidate string.
 HIGHLIGHT can also return a pair where the second element is the actual
-highlight function."
-  (lambda (sink)
-    (let (hl)
-      (lambda (action)
-        (cond
-         ((stringp action)
-          (setq hl (funcall highlight action))
-          (unless (functionp hl) (setq hl (cdr hl)))
-          (funcall sink action))
-         ((and (consp action) hl)
-          (dolist (x action)
-            (funcall hl (if (consp x) (car x) x)))
-          (funcall sink action))
-         (t (funcall sink action)))))))
+highlight function.  If not given, HIGHLIGHT defaults to a function
+which highlights words."
+  (unless (functionp highlight)
+    (setq highlight
+          (lambda (input)
+            (consult--compile-regexp input 'emacs completion-ignore-case))))
+  (consult--async-transform-by-input
+   (lambda (input)
+     (when-let ((hl (funcall highlight input))
+                (hl (if (functionp hl) hl (cdr hl))))
+       (lambda (cands)
+         (dolist (x cands cands)
+           (funcall hl (if (consp x) (car x) x))))))))
 
 (defun consult--async-throttle (&optional throttle debounce)
   "Async function which throttles input.
@@ -2537,22 +2607,19 @@ The refresh happens after a DELAY, defaulting to
               ((or 'destroy 'refresh) ;; 'refresh already forced a refresh
                (cancel-timer timer)))))))))
 
-(cl-defun consult--async-command (builder &rest props
-                                          &key min-input throttle debounce
-                                          &allow-other-keys)
-  "Asynchronous command pipeline.
-BUILDER is the command line builder function, which takes the
-input string and must either return a list of command line
-arguments or a pair of the command line argument list and a
-highlighting function.
-MIN-INPUT is passed to `consult--async-min-input'.
-THROTTLE and DEBOUNCE are passed to `consult--async-throttle'.
-Other PROPS are passed to `make-process'."
-  (consult--async-pipeline
-   (consult--async-min-input min-input)
-   (consult--async-throttle throttle debounce)
-   (apply #'consult--async-process builder
-          (consult--plist-remove '(:min-input :throttle :debounce) props))))
+(defun consult--async-transform-by-input (fun)
+  "Transform candidates via FUN.
+FUN takes the input string and must return a transformation function."
+  (lambda (sink)
+    (let (transform)
+      (lambda (action)
+        (cond
+         ((stringp action)
+          (setq transform (funcall fun action))
+          (funcall sink action))
+         ((and (consp action) transform)
+          (funcall sink (funcall transform action)))
+         (t (funcall sink action)))))))
 
 (defun consult--async-transform (fun)
   "Use FUN to transform candidates."
@@ -2568,57 +2635,50 @@ Other PROPS are passed to `make-process'."
   "Filter candidates by FUN."
   (consult--async-transform (apply-partially #'seq-filter fun)))
 
-;;;; Dynamic collections
+;;;; Prebuilt async pipelines
 
-(defun consult--dynamic-compute (fun &optional restart)
-  "Dynamic computation of candidates.
-FUN computes the candidates given the input.
-RESTART is the time after which an interrupted computation should be
-restarted and defaults to `consult-async-input-debounce'."
-  (setq restart (or restart consult-async-input-debounce))
-  (lambda (sink)
-    (let ((timer (timer-create)) (current nil) (compute nil))
-      (setq compute
-            (lambda (input)
-              (let ((state 'killed))
-                (unwind-protect
-                    (while-no-input
-                      (funcall sink [indicator running])
-                      (redisplay)
-                      ;; Run computation
-                      (let ((response (funcall fun input)))
-                        ;; Flush and update candidate list
-                        (funcall sink 'flush)
-                        (funcall sink response)
-                        (funcall sink 'refresh)
-                        (setq state 'finished current input)))
-                  ;; If the computation was killed, restart it after some time.  This
-                  ;; can happen when moving point around.  Then the input doesn't
-                  ;; change and the computation isn't started again otherwise.
-                  (when (eq state 'killed)
-                    (timer-set-function timer compute (list input))
-                    (timer-set-time timer (timer-relative-time nil restart))
-                    (timer-activate timer))
-                  (funcall sink `[indicator ,state])))))
-      (lambda (action)
-        (prog1 (funcall sink action)
-          (pcase action
-            ((or 'cancel 'destroy) (cancel-timer timer))
-            ((pred stringp)
-             (cancel-timer timer)
-             (if (equal action current)
-                 (funcall sink [indicator finished])
-               (funcall compute action)))))))))
-
-(cl-defun consult--dynamic-collection (fun &key min-input throttle debounce)
-  "Dynamic collection with input splitting.
-FUN is passed to `consult--dynamic-compute'.
+(cl-defun consult--dynamic-collection (fun &key min-input throttle debounce
+                                           transform highlight)
+  "Dynamic candidate computation pipeline.
+FUN computes the candidates.  It takes either a single input argument or
+an input argument and a callback function, if computed candidates should
+be updated incrementally.
 MIN-INPUT is passed to `consult--async-min-input'.
-THROTTLE and DEBOUNCE are passed to `consult--async-throttle'."
+THROTTLE and DEBOUNCE are passed to `consult--async-throttle'.
+TRANSFORM is an optional async function transforming the candidate.
+HIGHLIGHT is an optional highlight function, can be t for the default
+highlighting function."
+  (declare (indent 1))
   (consult--async-pipeline
    (consult--async-min-input min-input)
    (consult--async-throttle throttle debounce)
-   (consult--dynamic-compute fun)))
+   (consult--async-dynamic fun)
+   transform
+   (and highlight (consult--async-highlight highlight))))
+
+(cl-defun consult--process-collection (builder &rest props &key min-input
+                                               debounce throttle transform
+                                               highlight &allow-other-keys)
+  "Asynchronous process pipeline.
+BUILDER is the command line builder function, which takes the
+input string and must either return a list of command line
+arguments or a pair of the command line argument list and a
+highlighting function.
+TRANSFORM is an optional async function transforming the candidate.
+If HIGHLIGHT is non-nil, highlight the candidates.
+MIN-INPUT is passed to `consult--async-min-input'.
+THROTTLE and DEBOUNCE are passed to `consult--async-throttle'.
+Other PROPS are passed to `make-process'."
+  (declare (indent 1))
+  (consult--async-pipeline
+   (consult--async-min-input min-input)
+   (consult--async-throttle throttle debounce)
+   (apply #'consult--async-process builder
+          (consult--plist-remove
+           '(:min-input :throttle :debounce :transform :highlight) props))
+   transform
+   (and highlight (consult--async-highlight
+                   (if (functionp highlight) highlight builder)))))
 
 ;;;; Special keymaps
 
@@ -3030,16 +3090,14 @@ Attach source IDX and SRC properties to each item."
   (consult--async-merge
    (cl-loop
     for idx from 0 for src across sources collect
-    (let ((idx idx) (src src)
-          (pred (apply-partially #'consult--multi-visible-p src)))
-      (if-let ((async (plist-get src :async)))
-          (consult--async-pipeline
-           (consult--async-predicate pred)
-           async
-           (consult--async-transform
-            (apply-partially #'consult--multi-items idx src)))
-        (consult--async-pipeline
-         (consult--async-predicate pred)
+    (let ((idx idx) (src src))
+      (consult--async-pipeline
+       (consult--async-predicate (apply-partially #'consult--multi-visible-p src))
+       (if-let ((async (plist-get src :async)))
+           (consult--async-pipeline
+            async
+            (consult--async-transform
+             (apply-partially #'consult--multi-items idx src)))
          (consult--async-static (consult--multi-items idx src t))))))))
 
 (defun consult--multi-enabled-sources (sources)
@@ -3594,37 +3652,39 @@ If TRANSFORM non-nil, return transformed CAND, otherwise return title."
                   (marker-buffer marker))))
       (if buf (buffer-name buf) "Dead buffer"))))
 
-(defun consult--line-multi-candidates (buffers input)
+(defun consult--line-multi-candidates (buffers input callback)
   "Collect matching candidates from multiple buffers.
 INPUT is the user input which should be matched.
-BUFFERS is the list of buffers."
+BUFFERS is the list of buffers.
+CALLBACK receives the candidates."
   (pcase-let ((`(,regexps . ,hl) (consult--compile-regexp input 'emacs completion-ignore-case))
               (candidates nil)
               (cand-idx 0))
     (when regexps
-      (save-match-data
-        (dolist (buf buffers (nreverse candidates))
-          (with-current-buffer buf
-            (save-excursion
-              (let ((line (line-number-at-pos (point-min) consult-line-numbers-widen)))
-                (goto-char (point-min))
-                (while (and (not (eobp))
-                            (save-excursion (re-search-forward (car regexps) nil t)))
-                  (cl-incf line (consult--count-lines (match-beginning 0)))
-                  (let ((bol (pos-bol))
-                        (eol (pos-eol)))
-                    (goto-char bol)
-                    (when (and (not (looking-at-p "^\\s-*$"))
-                               (cl-loop for r in (cdr regexps) always
-                                        (progn
-                                          (goto-char bol)
-                                          (re-search-forward r eol t))))
-                      (push (consult--location-candidate
-                             (funcall hl (buffer-substring-no-properties bol eol))
-                             (cons buf bol) (1- line) cand-idx)
-                            candidates)
-                      (cl-incf cand-idx))
-                    (goto-char (1+ eol))))))))))))
+      (dolist (buf buffers)
+        (with-current-buffer buf
+          (save-excursion
+            (let ((line (line-number-at-pos (point-min) consult-line-numbers-widen)))
+              (goto-char (point-min))
+              (while (and (not (eobp))
+                          (save-excursion (re-search-forward (car regexps) nil t)))
+                (cl-incf line (consult--count-lines (match-beginning 0)))
+                (let ((bol (pos-bol))
+                      (eol (pos-eol)))
+                  (goto-char bol)
+                  (when (and (not (looking-at-p "^\\s-*$"))
+                             (cl-loop for r in (cdr regexps) always
+                                      (progn
+                                        (goto-char bol)
+                                        (re-search-forward r eol t))))
+                    (push (consult--location-candidate
+                           (funcall hl (buffer-substring-no-properties bol eol))
+                           (cons buf bol) (1- line) cand-idx)
+                          candidates)
+                    (cl-incf cand-idx))
+                  (goto-char (1+ eol)))))))
+        (funcall callback (nreverse candidates))
+        (setq candidates nil)))))
 
 ;;;###autoload
 (defun consult-line-multi (query &optional initial)
@@ -4961,17 +5021,13 @@ outside a project.  See `consult-buffer' for more details."
 (defun consult--grep-format (builder)
   "Async function highlighting grep match results.
 BUILDER is the command line builder function."
-  (lambda (sink)
-    (let (highlight)
-      (lambda (action)
-        (cond
-         ((stringp action)
-          (setq highlight (cdr (funcall builder action)))
-          (funcall sink action))
-         ((consp action)
+  (consult--async-transform-by-input
+   (lambda (input)
+     (let ((highlight (cdr (funcall builder input))))
+       (lambda (cands)
           (let ((file "") (file-len 0) result)
             (save-match-data
-              (dolist (str action)
+              (dolist (str cands (nreverse result))
                 (when (and (string-match consult--grep-match-regexp str)
                            ;; Filter out empty context lines
                            (or (/= (aref str (match-beginning 3)) ?-)
@@ -5000,9 +5056,7 @@ BUILDER is the command line builder function."
                     (put-text-property (1+ file-len) (+ 1 file-len line-len) 'face 'consult-line-number str)
                     (when ctx
                       (add-face-text-property (+ 2 file-len line-len) (length str) 'consult-grep-context 'append str))
-                    (push str result)))))
-            (funcall sink (nreverse result))))
-         (t (funcall sink action)))))))
+                    (push str result)))))))))))
 
 (defun consult--grep-position (cand &optional find-file)
   "Return the grep position marker for CAND.
@@ -5050,9 +5104,9 @@ input."
                (default-directory dir)
                (builder (funcall make-builder paths)))
     (consult--read
-     (consult--async-pipeline
-      (consult--async-command builder :file-handler t) ;; allow tramp
-      (consult--grep-format builder))
+     (consult--process-collection builder
+       :transform (consult--grep-format builder)
+       :file-handler t)
      :prompt prompt
      :lookup #'consult--lookup-member
      :state (consult--grep-state)
@@ -5209,10 +5263,9 @@ BUILDER is the command line builder function.
 PROMPT is the prompt.
 INITIAL is initial input."
   (consult--read
-   (consult--async-pipeline
-    (consult--async-command builder :file-handler t) ;; allow tramp
-    (consult--async-map (lambda (x) (string-remove-prefix "./" x)))
-    (consult--async-highlight builder))
+   (consult--process-collection builder
+     :transform (consult--async-map (lambda (x) (string-remove-prefix "./" x)))
+     :highlight t :file-handler t) ;; allow tramp
    :prompt prompt
    :sort nil
    :require-match t
@@ -5349,6 +5402,39 @@ details regarding the asynchronous search."
             (push cand candidates)))))
     (nreverse candidates)))
 
+(defun consult--man-preview ()
+  "Create preview function for man pages."
+  (let ((preview (consult--buffer-preview))
+        (orig (buffer-list))
+        buffers)
+    (lambda (action cand)
+      (unless cand
+        (mapc #'kill-buffer buffers)
+        (setq buffers nil))
+      (let ((consult--buffer-display #'switch-to-buffer-other-window))
+        (funcall preview action
+                 (and cand
+                      (eq action 'preview)
+                      (let ((buf (consult--man-action cand t)))
+                        (unless (memq buf orig)
+                          (consult--preview-rename-buffer buf)
+                          (push buf buffers)
+                          (when (length> buffers consult-preview-max-count)
+                            (kill-buffer (car (last buffers)))
+                            (setq buffers (nbutlast buffers))))
+                        buf)))))))
+
+(defun consult--man-action (page &optional nodisplay)
+  "Create man PAGE buffer, do not display if NODISPLAY is non-nil."
+  (dlet ((Man-prefer-synchronous-call t)
+         (Man-notify-method (and (not nodisplay) 'aggressive)))
+    (let (inhibit-message message-log-max)
+      (with-current-buffer (man page)
+        (goto-char (point-min))
+        (current-buffer)))))
+
+(consult--define-state man)
+
 ;;;###autoload
 (defun consult-man (&optional initial)
   "Search for man page given INITIAL input.
@@ -5358,18 +5444,18 @@ underlying man commands.  The man process is started asynchronously,
 similar to `consult-grep'.  See `consult-grep' for more details regarding
 the asynchronous search."
   (interactive)
-  (man (consult--read
-        (consult--async-pipeline
-         (consult--async-command #'consult--man-builder)
-         (consult--async-transform #'consult--man-format)
-         (consult--async-highlight #'consult--man-builder))
-        :prompt "Manual entry: "
-        :require-match t
-        :category 'consult-man
-        :lookup (apply-partially #'consult--lookup-prop 'consult-man)
-        :initial initial
-        :add-history (thing-at-point 'symbol)
-        :history '(:input consult--man-history))))
+  (consult--read
+   (consult--process-collection #'consult--man-builder
+     :transform (consult--async-transform #'consult--man-format)
+     :highlight t)
+   :prompt "Manual entry: "
+   :require-match t
+   :category 'consult-man
+   :state (consult--man-state)
+   :lookup (apply-partially #'consult--lookup-prop 'consult-man)
+   :initial initial
+   :add-history (thing-at-point 'symbol)
+   :history '(:input consult--man-history)))
 
 ;;;; Preview at point in completions buffers
 

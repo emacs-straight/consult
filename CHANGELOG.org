@@ -4,6 +4,9 @@
 
 * Development
 
+- New features:
+  + ~consult--multi~: Add support for asynchronous sources.
+  + ~consult-man~: Add preview.
 - *BREAKING CHANGE*: New async API
   + Async functions must have the uniform curried form ~(lambda (sink) (lambda
     (action) ...)~ and are composed with ~consult--async-pipeline~. See the
@@ -12,8 +15,11 @@
   + ~consult--multi~: Add support for ~:async~ sources.
   + ~consult--async-min-input~: New async function which enforces a minimum input
     length. The input length check has been removed from ~consult--async-split~.
-  + ~consult--async-transform~, ~consult--async-command~: The macros have been
-    converted to functions.
+  + ~consult--async-transform~: Macro converted to function.
+  + ~consult--process-collection~: New function replacing ~consult--async-command~.
+    The function accepts keyword arguments to customize the pipeline.
+  + ~consult--dynamic-collection~: The function accepts more keyword arguments to
+    customize the pipeline.
   + ~consult--async-refresh-timer~ and ~consult--async-refresh-immediate~: Replaced by
     ~consult--async-refresh~ with a ~DELAY~ argument.
   + ~consult--async-split-thingatpt~ and ~consult--async-split-initial~: Removed
