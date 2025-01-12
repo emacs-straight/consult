@@ -133,7 +133,7 @@ This applies to asynchronous commands, e.g., `consult-grep'."
                  (const :tag "Perl" perl)))
 
 (defcustom consult-async-split-styles-alist
-  `((nil :function ,#'consult--split-nil)
+  `((none :function ,#'consult--split-none)
     (comma :separator ?, :function ,#'consult--split-separator)
     (semicolon :separator ?\; :function ,#'consult--split-separator)
     (perl :initial "#" :function ,#'consult--split-perl))
@@ -1977,7 +1977,7 @@ determines the separator.  Examples: \"/async/filter\",
             ,@(and (match-end 2) `((,(match-beginning 2) . ,(match-end 2)))))))
     `(,str ,(length str))))
 
-(defun consult--split-nil (str &optional _plist)
+(defun consult--split-none (str &optional _plist)
   "Treat the complete input STR as async input."
   `(,str ,(length str)))
 
@@ -2233,6 +2233,7 @@ restarted and defaults to `consult-async-input-debounce'."
     (let ((timer (timer-create)) (current nil) (compute nil))
       (setq compute
             (lambda (input)
+              (cancel-timer timer)
               (funcall sink [indicator running])
               (redisplay)
               (let* ((flush t)
@@ -2257,7 +2258,7 @@ restarted and defaults to `consult-async-input-debounce'."
                 ;; If the computation was killed, restart it after a while.
                 ;; This happens when the point is moved.  Then the input does
                 ;; not change and the computation is not restarted otherwise.
-                (when killed
+                (when (and killed (not (memq timer timer-list)))
                   (timer-set-function timer compute (list input))
                   (timer-set-time timer (timer-relative-time nil restart))
                   (timer-activate timer)))))
@@ -2266,10 +2267,10 @@ restarted and defaults to `consult-async-input-debounce'."
           (pcase action
             ((or 'cancel 'destroy) (cancel-timer timer))
             ((pred stringp)
-             (cancel-timer timer)
-             (if (equal action current)
-                 (funcall sink [indicator finished])
-               (funcall compute action)))))))))
+             (if (not (equal action current))
+                 (funcall compute action)
+               (cancel-timer timer)
+               (funcall sink [indicator finished])))))))))
 
 (defun consult--async-static (items)
   "Async function with static ITEMS."
@@ -2382,7 +2383,7 @@ MIN-INPUT is the minimum input length and defaults to
   "Async function, which splits the input string.
 STYLE is the splitting style and defaults to the splitting style
 configured by `consult-async-split-style'."
-  (setq style (or style consult-async-split-style)
+  (setq style (or style consult-async-split-style 'none)
         style (or (alist-get style consult-async-split-styles-alist)
                   (user-error "Splitting style `%s' not found" style)))
   (lambda (sink)
@@ -2877,7 +2878,7 @@ PREVIEW-KEY are the preview keys."
                                prompt predicate require-match history default
                                keymap category initial narrow initial-narrow
                                add-history annotate state preview-key sort
-                               lookup group inherit-input-method)
+                               lookup group inherit-input-method async-wrap)
   "Enhanced completing read function to select from TABLE.
 
 The function is a thin wrapper around `completing-read'.  Keyword
@@ -2929,7 +2930,7 @@ ASYNC-WRAP wraps asynchronous functions and defaults to
                  (and (consp (car table)) (symbolp (caar table))))) ;; symbol alist
   (ignore prompt predicate require-match history default keymap category
           initial narrow initial-narrow add-history annotate state
-          preview-key sort lookup group inherit-input-method)
+          preview-key sort lookup group inherit-input-method async-wrap)
   (apply #'consult--read-1 table
          (append
           (consult--customize-get)
