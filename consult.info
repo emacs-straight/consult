@@ -1,4 +1,4 @@
-This is docip6R34.info, produced by makeinfo version 6.8 from
+This is docamfy3Z.info, produced by makeinfo version 6.8 from
 consult.texi.
 
 INFO-DIR-SECTION Emacs misc features
@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: docip6R34.info,  Node: Top,  Next: Available commands,  Up: (dir)
+File: docamfy3Z.info,  Node: Top,  Next: Available commands,  Up: (dir)
 
 consult.el - Consulting completing-read
 ***************************************
@@ -109,7 +109,7 @@ Indices
 
 
 
-File: docip6R34.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
+File: docamfy3Z.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
 
 1 Available commands
 ********************
@@ -142,7 +142,7 @@ their descriptions.
 * Miscellaneous::                Various other useful commands
 
 
-File: docip6R34.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
+File: docamfy3Z.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
 
 1.1 Virtual Buffers
 ===================
@@ -181,7 +181,7 @@ File: docip6R34.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available com
      ‘recentf-mode’ enables tracking of recent files.
 
 
-File: docip6R34.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
+File: docamfy3Z.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
 
 1.2 Editing
 ===========
@@ -199,7 +199,7 @@ File: docip6R34.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  
    • ‘consult-kmacro’: Select macro from the macro ring and execute it.
 
 
-File: docip6R34.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
+File: docamfy3Z.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
 
 1.3 Register
 ============
@@ -230,7 +230,7 @@ File: docip6R34.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: A
         • ‘C-u 100 M-' x’: Store number in register ‘x’.
 
 
-File: docip6R34.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
+File: docamfy3Z.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
 
 1.4 Navigation
 ==============
@@ -254,7 +254,7 @@ File: docip6R34.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Av
      imenu-anywhere (https://github.com/vspinu/imenu-anywhere).
 
 
-File: docip6R34.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
+File: docamfy3Z.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
 
 1.5 Search
 ==========
@@ -287,7 +287,7 @@ File: docip6R34.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  U
      region restricts the filtering.
 
 
-File: docip6R34.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
+File: docamfy3Z.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
 
 1.6 Grep and Find
 =================
@@ -324,7 +324,7 @@ File: docip6R34.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  
      ‘consult-find’ work just like those for the consult grep commands.
 
 
-File: docip6R34.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
+File: docamfy3Z.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
 
 1.7 Compilation
 ===============
@@ -339,7 +339,7 @@ File: docip6R34.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find
      ‘xref-show-xrefs-function’ and ‘xref-show-definitions-function’.
 
 
-File: docip6R34.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
+File: docamfy3Z.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
 
 1.8 Histories
 =============
@@ -362,7 +362,7 @@ File: docip6R34.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: A
      ‘isearch-edit-string’.
 
 
-File: docip6R34.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
+File: docamfy3Z.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
 
 1.9 Modes
 =========
@@ -375,7 +375,7 @@ File: docip6R34.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Avai
      local-minor/global-minor/major mode via the keys ‘l/g/m’.
 
 
-File: docip6R34.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
+File: docamfy3Z.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
 
 1.10 Org Mode
 =============
@@ -390,7 +390,7 @@ File: docip6R34.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available
      live preview and recursive editing.
 
 
-File: docip6R34.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
+File: docamfy3Z.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
 
 1.11 Help
 =========
@@ -421,7 +421,7 @@ File: docip6R34.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: A
                      "corfu" "cape" "tempel"))
 
 
-File: docip6R34.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
+File: docamfy3Z.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
 1.12 Miscellaneous
 ==================
@@ -453,7 +453,7 @@ File: docip6R34.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
      place directly in the original buffer.
 
 
-File: docip6R34.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
+File: docamfy3Z.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
 
 2 Special features
 ******************
@@ -477,7 +477,7 @@ advanced features.
 * Embark integration::           Actions, Grep/Occur-buffer export
 
 
-File: docip6R34.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
+File: docamfy3Z.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
 
 2.1 Live previews
 =================
@@ -558,7 +558,7 @@ experience.
                           :debounce 1 any))
 
 
-File: docip6R34.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
+File: docamfy3Z.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
 
 2.2 Narrowing and grouping
 ==========================
@@ -593,7 +593,7 @@ keys are automatically shown in the which-key window after pressing the
 ‘consult-narrow-key’.
 
 
-File: docip6R34.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
+File: docamfy3Z.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
 
 2.3 Asynchronous search
 =======================
@@ -659,7 +659,7 @@ status:
      provided.
 
 
-File: docip6R34.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
+File: docamfy3Z.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
 
 2.4 Multiple sources
 ====================
@@ -763,7 +763,7 @@ the internal ‘consult--multi’ API.  The function ‘consult--multi’ can be
 used to create new multi-source commands.
 
 
-File: docip6R34.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
+File: docamfy3Z.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
 
 2.5 Embark integration
 ======================
@@ -807,7 +807,7 @@ package is installed.  These three workflows are symmetric.
      ‘wdired-change-to-wdired-mode’ for editing.
 
 
-File: docip6R34.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
+File: docamfy3Z.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
 
 3 Configuration
 ***************
@@ -834,7 +834,7 @@ lexical binding, since they use lambdas and closures.
 * Fine-tuning::                  Fine-grained configuration for special requirements
 
 
-File: docip6R34.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
+File: docamfy3Z.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
 
 3.1 Use-package example
 =======================
@@ -960,7 +960,7 @@ additional configuration examples.
      )
 
 
-File: docip6R34.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
+File: docamfy3Z.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
 
 3.2 Custom variables
 ====================
@@ -1017,7 +1017,7 @@ consult-themes                     List of themes to be presented for selection
 consult-widen-key                  Widening key during completion
 
 
-File: docip6R34.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
+File: docamfy3Z.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
 
 3.3 Project support
 ===================
@@ -1044,7 +1044,7 @@ possible to configure alternative methods via the customization variable
      (setq consult-project-function nil)
 
 
-File: docip6R34.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
+File: docamfy3Z.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
 
 3.4 Fine-tuning of individual commands
 ======================================
@@ -1114,7 +1114,7 @@ by the following techniques:
   5. Write or propose a patch.
 
 
-File: docip6R34.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
+File: docamfy3Z.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
 4 Recommended packages
 **********************
@@ -1159,7 +1159,7 @@ Consult wiki.  These packages integrate Consult with special programs or
 with other packages in the wider Emacs ecosystem.
 
 
-File: docip6R34.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
+File: docamfy3Z.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
 
 5 Bug reports
 *************
@@ -1224,7 +1224,7 @@ lexical binding
 Consult often relies on lambdas and lexical closures.
 
 
-File: docip6R34.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
+File: docamfy3Z.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
 
 6 Hacking
 *********
@@ -1235,7 +1235,7 @@ File: docip6R34.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports, 
 * Live preview::
 
 
-File: docip6R34.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Up: Hacking
+File: docamfy3Z.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Up: Hacking
 
 6.1 Creating asynchronous completion commands
 =============================================
@@ -1287,7 +1287,7 @@ and ‘consult--process-collection’ can be used for ‘consult--multi’
 sources.  Specify them as ‘:async’ field of the source plist.
 
 
-File: docip6R34.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
+File: docamfy3Z.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
 
 6.2 Live preview
 ================
@@ -1320,7 +1320,7 @@ action argument.  Once defined, we can use this preview function in
       :state #'testibus--preview)
 
 
-File: docip6R34.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
+File: docamfy3Z.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
 
 7 Contributions
 ***************
@@ -1340,7 +1340,7 @@ contribute to the Consult wiki (https://github.com/minad/consult/wiki),
 in case you want to share small configuration or command snippets.
 
 
-File: docip6R34.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
+File: docamfy3Z.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
 
 8 Acknowledgments
 *****************
@@ -1391,7 +1391,7 @@ Manuel Uberti (https://github.com/manuel-uberti/), Stefan Monnier
 (https://protesilaos.com).
 
 
-File: docip6R34.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
+File: docamfy3Z.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
 9 Indices
 *********
@@ -1402,7 +1402,7 @@ File: docip6R34.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 * Concept index::                List of all Consult-specific concepts
 
 
-File: docip6R34.info,  Node: Function index,  Next: Concept index,  Up: Indices
+File: docamfy3Z.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
 9.1 Function index
 ==================
@@ -1460,7 +1460,7 @@ File: docip6R34.info,  Node: Function index,  Next: Concept index,  Up: Indices
 * consult-yank-replace:                  Editing.               (line 6)
 
 
-File: docip6R34.info,  Node: Concept index,  Prev: Function index,  Up: Indices
+File: docamfy3Z.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 9.2 Concept index
 =================
