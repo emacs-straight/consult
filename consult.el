@@ -586,6 +586,11 @@ We use invalid characters outside the Unicode range.")
 (defvar-local consult--focus-lines-overlays nil
   "Overlays used by `consult-focus-lines'.")
 
+(defvar consult--focus-lines-indicator
+  (propertize "FOCUS" 'face 'highlight
+              'help-echo "`consult-focus-lines': \\[consult-focus-lines] \\[newline] to reveal.")
+  "Mode line indicator displayed if `consult-focus-lines' is active.")
+
 ;;;; Miscellaneous helper functions
 
 (defun consult--plist-remove (keys plist)
@@ -3794,13 +3799,14 @@ to `consult--buffer-query'."
 
 ;;;###autoload
 (defun consult-keep-lines (filter &optional initial)
-  "Select a subset of the lines in the current buffer with live preview.
+  "Filter a subset of the lines in the current buffer with live preview.
 
-The selected lines are kept and the other lines are deleted.  When called
-interactively, the lines selected are those that match the minibuffer input.  In
-order to match the inverse of the input, prefix the input with `! '.  When
-called from Elisp, the filtering is performed by a FILTER function.  This
-command obeys narrowing.
+The filtered lines are kept and the other lines are deleted.  When
+called interactively, the lines selected are those that match the
+minibuffer input.  In order to match the inverse of the input, prefix
+the input with `! '.  When called from Elisp, the filtering is performed
+by a FILTER function.  If the buffer is narrowed to a region, the
+command only acts on this region.
 
 FILTER is the filter function.
 INITIAL is the initial input."
@@ -3899,8 +3905,7 @@ INITIAL is the initial input."
           (goto-char pt-orig))
          (t
           ;; Successfully terminated -> Remember invisible overlays
-          (setq consult--focus-lines-overlays
-                (nconc consult--focus-lines-overlays overlays))
+          (cl-callf nconc consult--focus-lines-overlays overlays)
           ;; move point past invisible
           (goto-char (if-let (ov (and (invisible-p pt-orig)
                                       (seq-find (lambda (ov) (overlay-get ov 'invisible))
@@ -3913,11 +3918,13 @@ INITIAL is the initial input."
   "Hide or show lines using overlays.
 
 The selected lines are shown and the other lines hidden.  When called
-interactively, the lines selected are those that match the minibuffer input.  In
-order to match the inverse of the input, prefix the input with `! '.  With
-optional prefix argument SHOW reveal the hidden lines.  Alternatively the
-command can be restarted to reveal the lines.  When called from Elisp, the
-filtering is performed by a FILTER function.  This command obeys narrowing.
+interactively, the lines selected are those that match the minibuffer
+input.  In order to match the inverse of the input, prefix the input
+with `! '.  With optional prefix argument SHOW reveal the hidden lines.
+Alternatively rerun the command and exit the minibuffer directly without
+input to reveal the lines.  When called from Elisp, the filtering is
+performed by a FILTER function.  If the buffer is narrowed to a region,
+the command only acts on this region.
 
 FILTER is the filter function.
 INITIAL is the initial input."
@@ -3941,7 +3948,11 @@ INITIAL is the initial input."
         "Focus on lines: ")
       :initial initial
       :history 'consult--line-history
-      :state (consult--focus-lines-state filter)))))
+      :state (consult--focus-lines-state filter))))
+  (cl-callf2 assq-delete-all 'consult--focus-lines-overlays mode-line-misc-info)
+  (when (and consult--focus-lines-overlays consult--focus-lines-indicator)
+    (push `(consult--focus-lines-overlays ,consult--focus-lines-indicator)
+          mode-line-misc-info)))
 
 ;;;;; Command: consult-goto-line
 
