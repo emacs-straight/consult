@@ -1,4 +1,4 @@
-This is docoPIFt4.info, produced by makeinfo version 6.8 from
+This is docIGCN8Y.info, produced by makeinfo version 6.8 from
 consult.texi.
 
 INFO-DIR-SECTION Emacs misc features
@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: docoPIFt4.info,  Node: Top,  Next: Available commands,  Up: (dir)
+File: docIGCN8Y.info,  Node: Top,  Next: Available commands,  Up: (dir)
 
 consult.el - Consulting completing-read
 ***************************************
@@ -109,7 +109,7 @@ Indices
 
 
 
-File: docoPIFt4.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
+File: docIGCN8Y.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
 
 1 Available commands
 ********************
@@ -142,7 +142,7 @@ their descriptions.
 * Miscellaneous::                Various other useful commands
 
 
-File: docoPIFt4.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
+File: docIGCN8Y.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
 
 1.1 Virtual Buffers
 ===================
@@ -181,7 +181,7 @@ File: docoPIFt4.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available com
      ‘recentf-mode’ enables tracking of recent files.
 
 
-File: docoPIFt4.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
+File: docIGCN8Y.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
 
 1.2 Editing
 ===========
@@ -199,7 +199,7 @@ File: docoPIFt4.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  
    • ‘consult-kmacro’: Select macro from the macro ring and execute it.
 
 
-File: docoPIFt4.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
+File: docIGCN8Y.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
 
 1.3 Register
 ============
@@ -230,7 +230,7 @@ File: docoPIFt4.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: A
         • ‘C-u 100 M-' x’: Store number in register ‘x’.
 
 
-File: docoPIFt4.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
+File: docIGCN8Y.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
 
 1.4 Navigation
 ==============
@@ -254,7 +254,7 @@ File: docoPIFt4.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Av
      imenu-anywhere (https://github.com/vspinu/imenu-anywhere).
 
 
-File: docoPIFt4.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
+File: docIGCN8Y.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
 
 1.5 Search
 ==========
@@ -287,7 +287,7 @@ File: docoPIFt4.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  U
      region restricts the filtering.
 
 
-File: docoPIFt4.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
+File: docIGCN8Y.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
 
 1.6 Grep and Find
 =================
@@ -324,7 +324,7 @@ File: docoPIFt4.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  
      ‘consult-find’ work just like those for the consult grep commands.
 
 
-File: docoPIFt4.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
+File: docIGCN8Y.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
 
 1.7 Compilation
 ===============
@@ -339,7 +339,7 @@ File: docoPIFt4.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find
      ‘xref-show-xrefs-function’ and ‘xref-show-definitions-function’.
 
 
-File: docoPIFt4.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
+File: docIGCN8Y.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
 
 1.8 Histories
 =============
@@ -362,7 +362,7 @@ File: docoPIFt4.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: A
      ‘isearch-edit-string’.
 
 
-File: docoPIFt4.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
+File: docIGCN8Y.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
 
 1.9 Modes
 =========
@@ -375,7 +375,7 @@ File: docoPIFt4.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Avai
      local-minor/global-minor/major mode via the keys ‘l/g/m’.
 
 
-File: docoPIFt4.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
+File: docIGCN8Y.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
 
 1.10 Org Mode
 =============
@@ -390,7 +390,7 @@ File: docoPIFt4.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available
      live preview and recursive editing.
 
 
-File: docoPIFt4.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
+File: docIGCN8Y.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
 
 1.11 Help
 =========
@@ -415,7 +415,7 @@ File: docoPIFt4.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: A
      (consult-info-define "magit")
 
 
-File: docoPIFt4.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
+File: docIGCN8Y.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
 1.12 Miscellaneous
 ==================
@@ -447,7 +447,7 @@ File: docoPIFt4.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
      place directly in the original buffer.
 
 
-File: docoPIFt4.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
+File: docIGCN8Y.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
 
 2 Special features
 ******************
@@ -471,7 +471,7 @@ advanced features.
 * Embark integration::           Actions, Grep/Occur-buffer export
 
 
-File: docoPIFt4.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
+File: docIGCN8Y.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
 
 2.1 Live previews
 =================
@@ -552,7 +552,7 @@ experience.
                           :debounce 1 any))
 
 
-File: docoPIFt4.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
+File: docIGCN8Y.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
 
 2.2 Narrowing and grouping
 ==========================
@@ -587,7 +587,7 @@ keys are automatically shown in the which-key window after pressing the
 ‘consult-narrow-key’.
 
 
-File: docoPIFt4.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
+File: docIGCN8Y.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
 
 2.3 Asynchronous search
 =======================
@@ -653,7 +653,7 @@ status:
      provided.
 
 
-File: docoPIFt4.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
+File: docIGCN8Y.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
 
 2.4 Multiple sources
 ====================
@@ -757,7 +757,7 @@ the internal ‘consult--multi’ API.  The function ‘consult--multi’ can be
 used to create new multi-source commands.
 
 
-File: docoPIFt4.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
+File: docIGCN8Y.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
 
 2.5 Embark integration
 ======================
@@ -801,7 +801,7 @@ package is installed.  These three workflows are symmetric.
      ‘wdired-change-to-wdired-mode’ for editing.
 
 
-File: docoPIFt4.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
+File: docIGCN8Y.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
 
 3 Configuration
 ***************
@@ -828,7 +828,7 @@ lexical binding, since they use lambdas and closures.
 * Fine-tuning::                  Fine-grained configuration for special requirements
 
 
-File: docoPIFt4.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
+File: docIGCN8Y.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
 
 3.1 Use-package example
 =======================
@@ -954,7 +954,7 @@ additional configuration examples.
      )
 
 
-File: docoPIFt4.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
+File: docIGCN8Y.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
 
 3.2 Custom variables
 ====================
@@ -1011,7 +1011,7 @@ consult-themes                     List of themes to be presented for selection
 consult-widen-key                  Widening key during completion
 
 
-File: docoPIFt4.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
+File: docIGCN8Y.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
 
 3.3 Project support
 ===================
@@ -1038,7 +1038,7 @@ possible to configure alternative methods via the customization variable
      (setq consult-project-function nil)
 
 
-File: docoPIFt4.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
+File: docIGCN8Y.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
 
 3.4 Fine-tuning of individual commands
 ======================================
@@ -1108,7 +1108,7 @@ by the following techniques:
   5. Write or propose a patch.
 
 
-File: docoPIFt4.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
+File: docIGCN8Y.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
 4 Recommended packages
 **********************
@@ -1153,7 +1153,7 @@ Consult wiki.  These packages integrate Consult with special programs or
 with other packages in the wider Emacs ecosystem.
 
 
-File: docoPIFt4.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
+File: docIGCN8Y.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
 
 5 Bug reports
 *************
@@ -1218,7 +1218,7 @@ lexical binding
 Consult often relies on lambdas and lexical closures.
 
 
-File: docoPIFt4.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
+File: docIGCN8Y.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
 
 6 Hacking
 *********
@@ -1229,7 +1229,7 @@ File: docoPIFt4.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports, 
 * Live preview::
 
 
-File: docoPIFt4.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Up: Hacking
+File: docIGCN8Y.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Up: Hacking
 
 6.1 Creating asynchronous completion commands
 =============================================
@@ -1281,7 +1281,7 @@ and ‘consult--process-collection’ can be used for ‘consult--multi’
 sources.  Specify them as ‘:async’ field of the source plist.
 
 
-File: docoPIFt4.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
+File: docIGCN8Y.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
 
 6.2 Live preview
 ================
@@ -1314,7 +1314,7 @@ action argument.  Once defined, we can use this preview function in
       :state #'testibus--preview)
 
 
-File: docoPIFt4.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
+File: docIGCN8Y.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
 
 7 Contributions
 ***************
@@ -1334,7 +1334,7 @@ contribute to the Consult wiki (https://github.com/minad/consult/wiki),
 in case you want to share small configuration or command snippets.
 
 
-File: docoPIFt4.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
+File: docIGCN8Y.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
 
 8 Acknowledgments
 *****************
@@ -1385,7 +1385,7 @@ Manuel Uberti (https://github.com/manuel-uberti/), Stefan Monnier
 (https://protesilaos.com).
 
 
-File: docoPIFt4.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
+File: docIGCN8Y.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
 9 Indices
 *********
@@ -1396,7 +1396,7 @@ File: docoPIFt4.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 * Concept index::                List of all Consult-specific concepts
 
 
-File: docoPIFt4.info,  Node: Function index,  Next: Concept index,  Up: Indices
+File: docIGCN8Y.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
 9.1 Function index
 ==================
@@ -1455,7 +1455,7 @@ File: docoPIFt4.info,  Node: Function index,  Next: Concept index,  Up: Indices
 * consult-yank-replace:                  Editing.               (line 6)
 
 
-File: docoPIFt4.info,  Node: Concept index,  Prev: Function index,  Up: Indices
+File: docIGCN8Y.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 9.2 Concept index
 =================
