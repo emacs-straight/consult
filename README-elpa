@@ -298,8 +298,8 @@ Table of Contents
 1.7 Compilation
 ───────────────
 
-  • `consult-compile-error': Jump to a compilation error. Supports live
-    preview narrowing and recursive editing.
+  • `consult-compile-error': Jump to a compilation error or grep search
+    result.  Supports live preview narrowing and recursive editing.
   • `consult-flymake': Jump to Flymake diagnostic. Supports live preview
     and recursive editing. The command supports narrowing. Press `e
     SPC', `w SPC', `n SPC' to only show errors, warnings and notes
