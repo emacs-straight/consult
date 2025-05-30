@@ -129,7 +129,7 @@ Table of Contents
     • SPC Hidden buffers
     • * Modified buffers
     • f Files (Requires `recentf-mode')
-    • r File registers
+    • r File and buffer registers
     • m Bookmarks
     • p Project
     • B Project buffers
