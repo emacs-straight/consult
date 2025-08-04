@@ -227,7 +227,7 @@ with a space character, the *Completions* buffer and a few log
 buffers.  The regular expressions are matched case sensitively."
   :type '(repeat regexp))
 
-(defcustom consult-buffer-list #'buffer-list
+(defcustom consult-buffer-list-function #'buffer-list
   "List of buffers to use for selection.
 By default, the variable is set to the function `buffer-list', which
 returns all buffers from all frames.  Set it to
@@ -239,9 +239,10 @@ custom buffer isolation."
                  (function :tag "Custom function")))
 
 (defcustom consult-buffer-sources
-  '(consult--source-hidden-buffer
+  '(consult--source-buffer
+    consult--source-hidden-buffer
     consult--source-modified-buffer
-    consult--source-buffer
+    consult--source-other-buffer
     consult--source-recent-file
     consult--source-buffer-register
     consult--source-file-register
@@ -574,7 +575,7 @@ We use invalid characters outside the Unicode range.")
   "Special character regexp.")
 
 (defvar-local consult--narrow nil
-  "Current narrowing key.")
+  "Current narrow key.")
 
 (defvar-local consult--narrow-config nil
   "Narrowing config of the current completion.")
@@ -4709,7 +4710,7 @@ to search and is passed to `consult--buffer-query'."
 
 (cl-defun consult--buffer-query ( &key sort directory mode as predicate (filter t)
                                   include (exclude consult-buffer-filter)
-                                  (buffer-list consult-buffer-list))
+                                  (buffer-list consult-buffer-list-function))
   "Query for a list of matching buffers.
 The function supports filtering by various criteria which are
 used throughout Consult.  In particular it is the backbone of
@@ -4909,14 +4910,14 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
      :history  buffer-name-history
      :action   ,#'consult--buffer-action
      :items
-     ,(lambda ()
-        (let ((unhidden (consult--string-hash (consult--buffer-query))))
-          (consult--buffer-query :sort 'visibility
-                                 :predicate (lambda (buf) (not (gethash buf unhidden)))
-                                 :as #'consult--buffer-pair
-                                 :filter nil
-                                 :buffer-list t))))
-  "Hidden buffer source for `consult-buffer'.")
+     ,(lambda () (consult--buffer-query :sort 'visibility
+                                        :filter 'invert
+                                        :as #'consult--buffer-pair
+                                        :buffer-list t)))
+  "Hidden buffer source for `consult-buffer'.
+The source is hidden by default and can be summoned via its narrow key.
+All buffers are taken into account, i.e., the entire `buffer-list' from
+all frames.")
 
 (defvar consult--source-modified-buffer
   `( :name     "Modified Buffer"
@@ -4933,7 +4934,10 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
                                         (lambda (buf)
                                           (and (buffer-modified-p buf)
                                                (buffer-file-name buf))))))
-  "Modified buffer source for `consult-buffer'.")
+  "Modified buffer source for `consult-buffer'.
+The source is hidden by default and can be summoned via its narrow key.
+Only buffers returned by the `consult-buffer-list-function' are taken
+into account.")
 
 (defvar consult--source-buffer
   `( :name     "Buffer"
@@ -4946,7 +4950,30 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
      :items
      ,(lambda () (consult--buffer-query :sort 'visibility
                                         :as #'consult--buffer-pair)))
-  "Buffer source for `consult-buffer'.")
+  "Buffer source for `consult-buffer'.
+Only buffers returned by the `consult-buffer-list-function' are taken into
+account.")
+
+(defvar consult--source-other-buffer
+  `( :name     "Other Buffer"
+     :narrow   ?o
+     :hidden   t
+     :category buffer
+     :face     consult-buffer
+     :history  buffer-name-history
+     :state    ,#'consult--buffer-state
+     :enabled  (lambda () (not (eq consult-buffer-list-function #'buffer-list)))
+     :items
+     ,(lambda ()
+        (let ((local (consult--string-hash (consult--buffer-query))))
+          (consult--buffer-query :sort 'visibility
+                                 :predicate (lambda (buf) (not (gethash buf local)))
+                                 :as #'consult--buffer-pair
+                                 :buffer-list t))))
+  "Source for `consult-buffer' for buffers from other frames or tabs.
+The source is hidden by default and can be summoned via its narrow key.
+Only buffers returned by the `consult-buffer-list-function' are taken
+into account.")
 
 (autoload 'consult-register--candidates "consult-register")
 
