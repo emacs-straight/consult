@@ -67,8 +67,9 @@ Table of Contents
 4. Recommended packages
 5. Bug reports
 6. Hacking
-.. 1. Creating asynchronous completion commands
-.. 2. Live preview
+.. 1. Creating simple commands
+.. 2. Creating asynchronous completion commands
+.. 3. Live preview
 7. Contributions
 8. Acknowledgments
 9. Indices
@@ -91,9 +92,9 @@ Table of Contents
 
 [Mct] <https://github.com/protesilaos/mct>
 
-[Marginalia] <https://github.com/minad/marginalia/>
+[Marginalia] <https://github.com/minad/marginalia>
 
-[Embark] <https://github.com/oantolin/embark/>
+[Embark] <https://github.com/oantolin/embark>
 
 [Orderless] <https://github.com/oantolin/orderless>
 
@@ -1224,7 +1225,68 @@ Table of Contents
 6 Hacking
 ═════════
 
-6.1 Creating asynchronous completion commands
+6.1 Creating simple commands
+────────────────────────────
+
+  When creating simple commands you can either use `consult--read' or
+  directly rely on the built-in `completing-read'
+  function. `consult--read' provides a nicer and more featureful API on
+  top of `completing-read'. You can specify the completion candidates
+  directly.
+
+  ┌────
+  │ (consult--read
+  │  '("String A"
+  │    "String B"
+  │    "String C")
+  │  :sort nil
+  │  :prompt "Select: ")
+  └────
+
+  If you pass it an alist of `(completion-string . value)', you can look
+  up the value.
+
+  ┌────
+  │ (consult--read
+  │  '(("String A" . value-a)
+  │    ("String B" . value-b)
+  │    ("String C" . value-c))
+  │  :prompt "Select: "
+  │  :sort nil
+  │  :lookup #'consult--lookup-cdr)
+  └────
+
+  You can add the result as a text property.
+
+  ┌────
+  │ (consult--read
+  │  (list
+  │   (propertize "String A" 'consult--candidate 'value-a)
+  │   (propertize "String B" 'consult--candidate 'value-b)
+  │   (propertize "String C" 'consult--candidate 'value-c))
+  │  :prompt "Select: "
+  │  :sort nil
+  │  :lookup #'consult--lookup-candidate)
+  └────
+
+  You can add other text properties.
+
+  ┌────
+  │ (consult--read
+  │  (mapcar (lambda (value)
+  │ 	   (propertize
+  │ 	    (format "%s %s"
+  │ 		    (propertize "Option" 'face 'font-lock-comment-face)
+  │ 		    value)
+  │ 	    'consult--candidate value))
+  │ 	 '("A" "B" "C"))
+  │  :prompt "Select: "
+  │  :sort nil
+  │  :lookup #'consult--lookup-candidate)
+  └────
+
+
+6.2 Creating asynchronous completion commands
 ─────────────────────────────────────────────
 
   If you have a completion source that's both dynamic and expensive to
@@ -1282,7 +1344,7 @@ Table of Contents
   sources. Specify them as `:async' field of the source plist.
 
 
-6.2 Live preview
+6.3 Live preview
 ────────────────
 
   Implementing live preview requires the definition of a state or
@@ -1375,11 +1437,11 @@ Table of Contents
 
 [Ashton Wiersdorf] <https://github.com/ashton314>
 
-[Adam Spiers] <https://github.com/aspiers/>
+[Adam Spiers] <https://github.com/aspiers>
 
 [Augusto Stoffel] <https://github.com/astoff>
 
-[Clemens Radermacher] <https://github.com/clemera/>
+[Clemens Radermacher] <https://github.com/clemera>
 
 [Zhengyi] <https://github.com/fuzy112>
 
@@ -1401,9 +1463,9 @@ Table of Contents
 
 [Fox Kiester] <https://github.com/noctuid>
 
-[Omar Antolín Camarena] <https://github.com/oantolin/>
+[Omar Antolín Camarena] <https://github.com/oantolin>
 
-[Earl Hyatt] <https://github.com/okamsn/>
+[Earl Hyatt] <https://github.com/okamsn>
 
 [Omar Polo] <https://github.com/omar-polo>
 
@@ -1411,7 +1473,7 @@ Table of Contents
 
 [Robert Weiner] <https://github.com/rswgnu>
 
-[Sergey Kostyaev] <https://github.com/s-kostyaev/>
+[Sergey Kostyaev] <https://github.com/s-kostyaev>
 
 [Alexandru Scvorțov] <https://github.com/scvalex>
 
@@ -1419,7 +1481,7 @@ Table of Contents
 
 [Sylvain Rousseau] <https://github.com/thisirs>
 
-[Tom Fitzhenry] <https://github.com/tomfitzhenry/>
+[Tom Fitzhenry] <https://github.com/tomfitzhenry>
 
 [Iñigo Serna] <https://hg.serna.eu>
 
@@ -1427,21 +1489,21 @@ Table of Contents
 
 [Enrique Kessler Martínez] <https://github.com/Qkessler>
 
-[Adam Porter] <https://github.com/alphapapa/>
+[Adam Porter] <https://github.com/alphapapa>
 
 [Bruce d'Arcus] <https://github.com/bdarcus>
 
-[Dmitry Gutov] <https://github.com/dgutov/>
+[Dmitry Gutov] <https://github.com/dgutov>
 
-[Howard Melman] <https://github.com/hmelman/>
+[Howard Melman] <https://github.com/hmelman>
 
 [Itai Y. Efrat] <https://github.com/iyefrat>
 
-[Manuel Uberti] <https://github.com/manuel-uberti/>
+[Manuel Uberti] <https://github.com/manuel-uberti>
 
-[Stefan Monnier] <https://github.com/monnier/>
+[Stefan Monnier] <https://github.com/monnier>
 
-[Steve Purcell] <https://github.com/purcell/>
+[Steve Purcell] <https://github.com/purcell>
 
 [Radon Rosborough] <https://github.com/raxod502>
 

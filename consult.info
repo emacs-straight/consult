@@ -1,4 +1,4 @@
-This is docUuAwmj.info, produced by makeinfo version 6.8 from
+This is docNM3CSj.info, produced by makeinfo version 6.8 from
 consult.texi.
 
 INFO-DIR-SECTION Emacs misc features
@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: docUuAwmj.info,  Node: Top,  Next: Available commands,  Up: (dir)
+File: docNM3CSj.info,  Node: Top,  Next: Available commands,  Up: (dir)
 
 consult.el - Consulting completing-read
 ***************************************
@@ -41,8 +41,8 @@ into existing setups and it helps you to create a full completion
 environment out of small and independent components.
 
    You can combine the complementary packages Marginalia
-(https://github.com/minad/marginalia/), Embark
-(https://github.com/oantolin/embark/) and Orderless
+(https://github.com/minad/marginalia), Embark
+(https://github.com/oantolin/embark) and Orderless
 (https://github.com/oantolin/orderless) with Consult.  Marginalia
 enriches the completion display with annotations, e.g., documentation
 strings or file information.  The versatile Embark package provides
@@ -100,6 +100,7 @@ Configuration
 
 Hacking
 
+* Creating simple commands::
 * Creating asynchronous completion commands::
 * Live preview::
 
@@ -110,7 +111,7 @@ Indices
 
 
 
-File: docUuAwmj.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
+File: docNM3CSj.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
 
 1 Available commands
 ********************
@@ -143,7 +144,7 @@ their descriptions.
 * Miscellaneous::                Various other useful commands
 
 
-File: docUuAwmj.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
+File: docNM3CSj.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
 
 1.1 Virtual Buffers
 ===================
@@ -187,7 +188,7 @@ File: docUuAwmj.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available com
      ‘recentf-mode’ enables tracking of recent files.
 
 
-File: docUuAwmj.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
+File: docNM3CSj.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
 
 1.2 Editing
 ===========
@@ -205,7 +206,7 @@ File: docUuAwmj.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  
    • ‘consult-kmacro’: Select macro from the macro ring and execute it.
 
 
-File: docUuAwmj.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
+File: docNM3CSj.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
 
 1.3 Register
 ============
@@ -236,7 +237,7 @@ File: docUuAwmj.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: A
         • ‘C-u 100 M-' x’: Store number in register ‘x’.
 
 
-File: docUuAwmj.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
+File: docNM3CSj.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
 
 1.4 Navigation
 ==============
@@ -260,7 +261,7 @@ File: docUuAwmj.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Av
      imenu-anywhere (https://github.com/vspinu/imenu-anywhere).
 
 
-File: docUuAwmj.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
+File: docNM3CSj.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
 
 1.5 Search
 ==========
@@ -293,7 +294,7 @@ File: docUuAwmj.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  U
      region restricts the filtering.
 
 
-File: docUuAwmj.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
+File: docNM3CSj.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
 
 1.6 Grep and Find
 =================
@@ -332,7 +333,7 @@ File: docUuAwmj.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  
      ‘consult-find’ work just like those for the consult grep commands.
 
 
-File: docUuAwmj.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
+File: docNM3CSj.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
 
 1.7 Compilation
 ===============
@@ -348,7 +349,7 @@ File: docUuAwmj.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find
      ‘xref-show-xrefs-function’ and ‘xref-show-definitions-function’.
 
 
-File: docUuAwmj.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
+File: docNM3CSj.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
 
 1.8 Histories
 =============
@@ -371,7 +372,7 @@ File: docUuAwmj.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: A
      ‘isearch-edit-string’.
 
 
-File: docUuAwmj.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
+File: docNM3CSj.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
 
 1.9 Modes
 =========
@@ -384,7 +385,7 @@ File: docUuAwmj.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Avai
      local-minor/global-minor/major mode via the keys ‘l/g/m’.
 
 
-File: docUuAwmj.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
+File: docNM3CSj.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
 
 1.10 Org Mode
 =============
@@ -399,7 +400,7 @@ File: docUuAwmj.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available
      live preview and recursive editing.
 
 
-File: docUuAwmj.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
+File: docNM3CSj.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
 
 1.11 Help
 =========
@@ -424,7 +425,7 @@ File: docUuAwmj.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: A
      (consult-info-define "magit")
 
 
-File: docUuAwmj.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
+File: docNM3CSj.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
 1.12 Miscellaneous
 ==================
@@ -456,7 +457,7 @@ File: docUuAwmj.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
      place directly in the original buffer.
 
 
-File: docUuAwmj.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
+File: docNM3CSj.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
 
 2 Special features
 ******************
@@ -480,7 +481,7 @@ advanced features.
 * Embark integration::           Actions, Grep/Occur-buffer export
 
 
-File: docUuAwmj.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
+File: docNM3CSj.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
 
 2.1 Live previews
 =================
@@ -561,7 +562,7 @@ experience.
                           :debounce 1 any))
 
 
-File: docUuAwmj.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
+File: docNM3CSj.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
 
 2.2 Narrowing and grouping
 ==========================
@@ -596,7 +597,7 @@ keys are automatically shown in the which-key window after pressing the
 ‘consult-narrow-key’.
 
 
-File: docUuAwmj.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
+File: docNM3CSj.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
 
 2.3 Asynchronous search
 =======================
@@ -662,7 +663,7 @@ status:
      provided.
 
 
-File: docUuAwmj.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
+File: docNM3CSj.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
 
 2.4 Multiple sources
 ====================
@@ -766,7 +767,7 @@ the internal ‘consult--multi’ API.  The function ‘consult--multi’ can be
 used to create new multi-source commands.
 
 
-File: docUuAwmj.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
+File: docNM3CSj.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
 
 2.5 Embark integration
 ======================
@@ -811,7 +812,7 @@ workflows are symmetric.
      ‘wdired-change-to-wdired-mode’ for editing.
 
 
-File: docUuAwmj.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
+File: docNM3CSj.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
 
 3 Configuration
 ***************
@@ -837,7 +838,7 @@ binding, since they use lambdas and closures.
 * Fine-tuning::                  Fine-grained configuration for special requirements
 
 
-File: docUuAwmj.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
+File: docNM3CSj.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
 
 3.1 Use-package example
 =======================
@@ -964,7 +965,7 @@ additional configuration examples.
      )
 
 
-File: docUuAwmj.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
+File: docNM3CSj.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
 
 3.2 Custom variables
 ====================
@@ -1022,7 +1023,7 @@ consult-themes                     List of themes to be presented for selection
 consult-widen-key                  Widening key during completion
 
 
-File: docUuAwmj.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
+File: docNM3CSj.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
 
 3.3 Project support
 ===================
@@ -1049,7 +1050,7 @@ possible to configure alternative methods via the customization variable
      (setq consult-project-function nil)
 
 
-File: docUuAwmj.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
+File: docNM3CSj.info,  Node: Fine-tuning,  Prev: Project support,  Up: Configuration
 
 3.4 Fine-tuning of individual commands
 ======================================
@@ -1119,7 +1120,7 @@ by the following techniques:
   5. Write or propose a patch.
 
 
-File: docUuAwmj.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
+File: docNM3CSj.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
 4 Recommended packages
 **********************
@@ -1165,7 +1166,7 @@ Consult wiki.  These packages integrate Consult with special programs or
 with other packages in the wider Emacs ecosystem.
 
 
-File: docUuAwmj.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
+File: docNM3CSj.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
 
 5 Bug reports
 *************
@@ -1228,20 +1229,75 @@ report:
 lexical binding.  Consult relies on lambdas and lexical closures.
 
 
-File: docUuAwmj.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
+File: docNM3CSj.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
 
 6 Hacking
 *********
 
 * Menu:
 
+* Creating simple commands::
 * Creating asynchronous completion commands::
 * Live preview::
 
 
-File: docUuAwmj.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Up: Hacking
+File: docNM3CSj.info,  Node: Creating simple commands,  Next: Creating asynchronous completion commands,  Up: Hacking
 
-6.1 Creating asynchronous completion commands
+6.1 Creating simple commands
+============================
+
+When creating simple commands you can either use ‘consult--read’ or
+directly rely on the built-in ‘completing-read’ function.
+‘consult--read’ provides a nicer and more featureful API on top of
+‘completing-read’.  You can specify the completion candidates directly.
+
+     (consult--read
+      '("String A"
+        "String B"
+        "String C")
+      :sort nil
+      :prompt "Select: ")
+
+   If you pass it an alist of ‘(completion-string . value)’, you can
+look up the value.
+
+     (consult--read
+      '(("String A" . value-a)
+        ("String B" . value-b)
+        ("String C" . value-c))
+      :prompt "Select: "
+      :sort nil
+      :lookup #'consult--lookup-cdr)
+
+   You can add the result as a text property.
+
+     (consult--read
+      (list
+       (propertize "String A" 'consult--candidate 'value-a)
+       (propertize "String B" 'consult--candidate 'value-b)
+       (propertize "String C" 'consult--candidate 'value-c))
+      :prompt "Select: "
+      :sort nil
+      :lookup #'consult--lookup-candidate)
+
+   You can add other text properties.
+
+     (consult--read
+      (mapcar (lambda (value)
+                (propertize
+                 (format "%s %s"
+                         (propertize "Option" 'face 'font-lock-comment-face)
+                         value)
+                 'consult--candidate value))
+              '("A" "B" "C"))
+      :prompt "Select: "
+      :sort nil
+      :lookup #'consult--lookup-candidate)
+
+
+File: docNM3CSj.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Prev: Creating simple commands,  Up: Hacking
+
+6.2 Creating asynchronous completion commands
 =============================================
 
 If you have a completion source that’s both dynamic and expensive to
@@ -1291,9 +1347,9 @@ and ‘consult--process-collection’ can be used for ‘consult--multi’
 sources.  Specify them as ‘:async’ field of the source plist.
 
 
-File: docUuAwmj.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
+File: docNM3CSj.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
 
-6.2 Live preview
+6.3 Live preview
 ================
 
 Implementing live preview requires the definition of a state or preview
@@ -1324,7 +1380,7 @@ action argument.  Once defined, we can use this preview function in
       :state #'testibus--preview)
 
 
-File: docUuAwmj.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
+File: docNM3CSj.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
 
 7 Contributions
 ***************
@@ -1344,7 +1400,7 @@ contribute to the Consult wiki (https://github.com/minad/consult/wiki),
 in case you want to share small configuration or command snippets.
 
 
-File: docUuAwmj.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
+File: docNM3CSj.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
 
 8 Acknowledgments
 *****************
@@ -1358,9 +1414,9 @@ great contributors and thanks to the feedback of many users.  Thank you!
    Code contributions: Aymeric Agon-Rambosson
 (https://github.com/aagon), Amos Bird (https://github.com/amosbird),
 Ashton Wiersdorf (https://github.com/ashton314), Adam Spiers
-(https://github.com/aspiers/), Augusto Stoffel
+(https://github.com/aspiers), Augusto Stoffel
 (https://github.com/astoff), Clemens Radermacher
-(https://github.com/clemera/), Zhengyi (https://github.com/fuzy112),
+(https://github.com/clemera), Zhengyi (https://github.com/fuzy112),
 Geoffrey Lessel (https://github.com/geolessel), Illia Ostapyshyn
 (https://github.com/iostapyshyn), jakanakaevangeli
 (https://github.com/jakanakaevangeli), JD Smith
@@ -1368,34 +1424,33 @@ Geoffrey Lessel (https://github.com/geolessel), Illia Ostapyshyn
 (https://github.com/jyp), mattiasdrp (https://github.com/mattiasdrp),
 Mohamed Abdelnour (https://github.com/mohamed-abdelnour), Mohsin Kaleem
 (https://github.com/mohkale), Fox Kiester (https://github.com/noctuid),
-Omar Antolín Camarena (https://github.com/oantolin/), Earl Hyatt
-(https://github.com/okamsn/), Omar Polo (https://github.com/omar-polo),
+Omar Antolín Camarena (https://github.com/oantolin), Earl Hyatt
+(https://github.com/okamsn), Omar Polo (https://github.com/omar-polo),
 Piotr Kwiecinski (https://github.com/piotrkwiecinski), Robert Weiner
 (https://github.com/rswgnu), Sergey Kostyaev
-(https://github.com/s-kostyaev/), Alexandru Scvorțov
+(https://github.com/s-kostyaev), Alexandru Scvorțov
 (https://github.com/scvalex), Tecosaur (https://github.com/tecosaur),
 Sylvain Rousseau (https://github.com/thisirs), Tom Fitzhenry
-(https://github.com/tomfitzhenry/), Iñigo Serna (https://hg.serna.eu)
-and Alex Kreisher (https://github.com/akreisher).
+(https://github.com/tomfitzhenry), Iñigo Serna (https://hg.serna.eu) and
+Alex Kreisher (https://github.com/akreisher).
 
    Advice and useful discussions: Enrique Kessler Martínez
 (https://github.com/Qkessler), Adam Porter
-(https://github.com/alphapapa/), Bruce d’Arcus
+(https://github.com/alphapapa), Bruce d’Arcus
 (https://github.com/bdarcus), Clemens Radermacher
-(https://github.com/clemera/), Dmitry Gutov
-(https://github.com/dgutov/), Howard Melman
-(https://github.com/hmelman/), Itai Y.  Efrat
+(https://github.com/clemera), Dmitry Gutov (https://github.com/dgutov),
+Howard Melman (https://github.com/hmelman), Itai Y.  Efrat
 (https://github.com/iyefrat), JD Smith (https://github.com/jdtsmith),
-Manuel Uberti (https://github.com/manuel-uberti/), Stefan Monnier
-(https://github.com/monnier/), Omar Antolín Camarena
-(https://github.com/oantolin/), Steve Purcell
-(https://github.com/purcell/), Radon Rosborough
+Manuel Uberti (https://github.com/manuel-uberti), Stefan Monnier
+(https://github.com/monnier), Omar Antolín Camarena
+(https://github.com/oantolin), Steve Purcell
+(https://github.com/purcell), Radon Rosborough
 (https://github.com/raxod502), Tom Fitzhenry
-(https://github.com/tomfitzhenry/) and Protesilaos Stavrou
+(https://github.com/tomfitzhenry) and Protesilaos Stavrou
 (https://protesilaos.com).
 
 
-File: docUuAwmj.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
+File: docNM3CSj.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
 9 Indices
 *********
@@ -1406,7 +1461,7 @@ File: docUuAwmj.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 * Concept index::                List of all Consult-specific concepts
 
 
-File: docUuAwmj.info,  Node: Function index,  Next: Concept index,  Up: Indices
+File: docNM3CSj.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
 9.1 Function index
 ==================
@@ -1466,7 +1521,7 @@ File: docUuAwmj.info,  Node: Function index,  Next: Concept index,  Up: Indices
 * consult-yank-replace:                  Editing.               (line 6)
 
 
-File: docUuAwmj.info,  Node: Concept index,  Prev: Function index,  Up: Indices
+File: docNM3CSj.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 9.2 Concept index
 =================
@@ -1500,40 +1555,41 @@ File: docUuAwmj.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 Tag Table:
 Node: Top221
-Node: Available commands5200
-Node: Virtual Buffers6777
-Node: Editing8954
-Node: Register9810
-Node: Navigation11531
-Node: Search12774
-Node: Grep and Find14685
-Node: Compilation17100
-Node: Histories17812
-Node: Modes19032
-Node: Org Mode19512
-Node: Help20128
-Node: Miscellaneous21332
-Node: Special features23076
-Node: Live previews24205
-Node: Narrowing and grouping28346
-Node: Asynchronous search30349
-Node: Multiple sources33431
-Node: Embark integration38333
-Node: Configuration40553
-Node: Use-package example41622
-Node: Custom variables48160
-Node: Project support52093
-Node: Fine-tuning53358
-Node: Recommended packages56317
-Node: Bug reports58442
-Node: Hacking61437
-Node: Creating asynchronous completion commands61623
-Node: Live preview63588
-Node: Contributions64785
-Node: Acknowledgments65697
-Node: Indices68247
-Node: Function index68485
-Node: Concept index72279
+Node: Available commands5227
+Node: Virtual Buffers6804
+Node: Editing8981
+Node: Register9837
+Node: Navigation11558
+Node: Search12801
+Node: Grep and Find14712
+Node: Compilation17127
+Node: Histories17839
+Node: Modes19059
+Node: Org Mode19539
+Node: Help20155
+Node: Miscellaneous21359
+Node: Special features23103
+Node: Live previews24232
+Node: Narrowing and grouping28373
+Node: Asynchronous search30376
+Node: Multiple sources33458
+Node: Embark integration38360
+Node: Configuration40580
+Node: Use-package example41649
+Node: Custom variables48187
+Node: Project support52120
+Node: Fine-tuning53385
+Node: Recommended packages56344
+Node: Bug reports58469
+Node: Hacking61464
+Node: Creating simple commands61679
+Node: Creating asynchronous completion commands63312
+Node: Live preview65310
+Node: Contributions66507
+Node: Acknowledgments67419
+Node: Indices69954
+Node: Function index70192
+Node: Concept index73986
 
 End Tag Table
 
