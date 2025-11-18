@@ -205,10 +205,8 @@ See also `display-line-numbers-widen'."
   :type 'boolean)
 
 (defcustom consult-fontify-max-size (* 1024 1024)
-  "Buffers larger than this character limit are not fontified.
-
-This is necessary in order to prevent a large startup time for the
-commands `consult-focus-lines' and `consult-keep-lines'."
+  "Avoid whole-buffer fontification for buffers larger than this character limit.
+This setting affects the command `consult-keep-lines'."
   :type '(natnum :tag "Buffer size in characters"))
 
 (defcustom consult-buffer-filter
@@ -956,17 +954,6 @@ always return an appropriate non-minibuffer window."
   (unless (minibufferp)
     (user-error "`%s' must be called inside the minibuffer" this-command)))
 
-(defun consult--fontify-all ()
-  "Ensure that the whole buffer is fontified."
-  ;; Font-locking is lazy, i.e., if a line has not been looked at yet, the line
-  ;; is not font-locked.  We would observe this if consulting an unfontified
-  ;; line.  Therefore we have to enforce font-locking now, which is slow.  In
-  ;; order to prevent is hang-up we check the buffer size against
-  ;; `consult-fontify-max-size'.
-  (when (and consult-fontify-preserve jit-lock-mode
-             (< (buffer-size) consult-fontify-max-size))
-    (jit-lock-fontify-now)))
-
 (defsubst consult--fontify-region (start end)
   "Ensure that region between START and END is fontified."
   (when (and consult-fontify-preserve jit-lock-mode)
@@ -1011,7 +998,7 @@ Also temporarily increase the GC limit via `consult--with-increased-gc'."
             (goto-char (min (+ (point) column) (pos-eol))))
           (point-marker))))))
 
-(defun consult--copy-property (beg end str prop)
+(defsubst consult--copy-property (beg end str prop)
   "Copy PROP from buffer region BEG to END to STR.
 The string STR is modified."
   (let ((pos beg))
@@ -1023,6 +1010,13 @@ The string STR is modified."
               (add-face-text-property (- pos beg) (- next beg) val t str)
             (put-text-property (- pos beg) (- next beg) prop val str)))
         (setq pos next)))))
+
+(defun consult--copy-faces (beg end str)
+  "Copy faces from buffer region BEG to END to STR.
+The string STR is modified."
+  (consult--copy-property beg end str 'face)
+  (consult--copy-property beg end str 'invisible)
+  (consult--copy-property beg end str 'display))
 
 (defun consult--line-fontify (&optional curr-line)
   "Annotation function to fontify `consult-location' line and add line number.
@@ -1048,9 +1042,7 @@ CURR-LINE is the current line number."
               (when (string-prefix-p (buffer-substring-no-properties beg end) cand)
                 (setq cand (copy-sequence cand))
                 (consult--fontify-region beg end)
-                (consult--copy-property beg end cand 'face)
-                (consult--copy-property beg end cand 'invisible)
-                (consult--copy-property beg end cand 'display)))))
+                (consult--copy-faces beg end cand)))))
         (list cand (format (if (< line curr-line) before after) line) "")))))
 
 (defsubst consult--location-candidate (cand marker line tofu &rest props)
@@ -1061,29 +1053,14 @@ TOFU suffix for disambiguation."
   (add-text-properties 0 1 `(consult-location (,marker . ,line) ,@props) cand)
   cand)
 
-;; There is a similar variable `yank-excluded-properties'.  Unfortunately
-;; we cannot use it here since it excludes too much (e.g., invisible)
-;; and at the same time not enough (e.g., cursor-sensor-functions).
-(defconst consult--remove-text-properties
-  '( category cursor cursor-intangible cursor-sensor-functions field follow-link
-     fontified front-sticky help-echo insert-behind-hooks insert-in-front-hooks
-     intangible keymap local-map modification-hooks mouse-face pointer read-only
-     rear-nonsticky yank-handler)
-  "List of text properties to remove from buffer strings.")
-
 (defsubst consult--buffer-substring (beg end &optional fontify)
   "Return buffer substring between BEG and END.
-If FONTIFY and `consult-fontify-preserve' are non-nil, first ensure that the
-region has been fontified."
+If FONTIFY and `consult-fontify-preserve' are non-nil, first ensure that
+the region has been fontified."
   (if consult-fontify-preserve
-      (let (str)
+      (let ((str (buffer-substring-no-properties beg end)))
         (when fontify (consult--fontify-region beg end))
-        (setq str (buffer-substring beg end))
-        ;; TODO Propose the upstream addition of a function
-        ;; `preserve-list-of-text-properties', which should be as efficient as
-        ;; `remove-list-of-text-properties'.
-        (remove-list-of-text-properties
-         0 (- end beg) consult--remove-text-properties str)
+        (consult--copy-faces beg end str)
         str)
     (buffer-substring-no-properties beg end)))
 
@@ -3793,7 +3770,12 @@ to `consult--buffer-query'."
                             (goto-char (or pos rbeg))
                             (setq rend (+ rbeg (length content)))
                             (add-face-text-property rbeg rend 'region t)))))
-      (consult--fontify-all)
+      ;; Font-locking is lazy, i.e., if a line has not been looked at yet, the
+      ;; line is not font-locked. Therefore we have to enforce slow font-locking
+      ;; now.  In order to prevent is hang-up we check the region size against
+      ;; `consult-fontify-max-size'.
+      (when (< (- (point-max) (point-min)) consult-fontify-max-size)
+        (consult--fontify-region (point-min) (point-max)))
       (setq content-orig (buffer-string)
             replace (lambda (content &optional pos)
                       (delete-region (point-min) (point-max))
@@ -3892,9 +3874,7 @@ INITIAL is the initial input."
   (let (lines overlays last-input pt-orig pt-min pt-max)
     (save-excursion
       (save-restriction
-        (if (not (use-region-p))
-            (consult--fontify-all)
-          (consult--fontify-region (region-beginning) (region-end))
+        (when (use-region-p)
           (narrow-to-region
            (region-beginning)
            ;; Behave the same as `keep-lines'.
