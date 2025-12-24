@@ -539,14 +539,15 @@ as the public API.")
   "Buffer display function.")
 
 (defvar consult--completion-candidate-hook
-  (list #'consult--default-completion-minibuffer-candidate
-        #'consult--default-completion-list-candidate)
+  (list #'consult--default-completion-list-candidate
+        #'consult--default-completion-minibuffer-candidate)
   "Get candidate from completion system.")
 
 ;; Redisplay such that the updated completion UI will be displayed, even when
 ;; the update happened due to `accept-process-output' inside a loop of a dynamic
 ;; collection. See `consult--async-dynamic'.
-(defvar consult--completion-refresh-hook '(redisplay)
+(defvar consult--completion-refresh-hook
+  (list #'redisplay #'consult--default-completion-list-refresh)
   "Refresh completion system.")
 
 (defvar-local consult--preview-function nil
@@ -5576,33 +5577,37 @@ the asynchronous search."
    :add-history (thing-at-point 'symbol)
    :history '(:input consult--man-history)))
 
-;;;; Preview at point in completions buffers
+;;;; Obsolete preview at point (enabled automatically)
 
-(define-minor-mode consult-preview-at-point-mode
-  "Preview minor mode for *Completions* buffers.
-When moving around in the *Completions* buffer, the candidate at point is
-automatically previewed."
-  :group 'consult
-  (if consult-preview-at-point-mode
-      (add-hook 'post-command-hook #'consult-preview-at-point nil 'local)
-    (remove-hook 'post-command-hook #'consult-preview-at-point 'local)))
-
-(defun consult-preview-at-point ()
-  "Preview candidate at point in *Completions* buffer."
-  (interactive)
-  (when-let ((win (active-minibuffer-window))
-             (buf (window-buffer win))
-             (fun (buffer-local-value 'consult--preview-function buf)))
-    (funcall fun)))
+(defvar consult-preview-at-point-mode nil)
+(defun consult-preview-at-point-mode () "Obsolete." (interactive))
+(defun consult-preview-at-point () "Obsolete." (interactive))
+(make-obsolete 'consult-preview-at-point-mode nil
+               "Obsolete since preview is enabled automatically.")
+(make-obsolete-variable 'consult-preview-at-point-mode nil
+                        "Obsolete since preview is enabled automatically.")
+(make-obsolete 'consult-preview-at-point nil
+               "Obsolete since preview is enabled automatically.")
 
 ;;;; Integration with completion systems
 
 ;;;;; Integration: Default *Completions*
 
+(defun consult--default-completion-list-preview ()
+  "Preview candidate at point in *Completions* buffer."
+  (when-let ((win (active-minibuffer-window))
+             (buf (window-buffer win))
+             (fun (buffer-local-value 'consult--preview-function buf)))
+    (funcall fun)))
+
+(defun consult--default-completion-list-preview-setup ()
+  "Setup preview at point in *Completions* buffer."
+  (add-hook 'post-command-hook #'consult--default-completion-list-preview nil 'local))
+(add-hook 'completion-list-mode-hook #'consult--default-completion-list-preview-setup)
+
 (defun consult--default-completion-minibuffer-candidate ()
   "Return current minibuffer candidate from default completion system or Icomplete."
-  (when (and (minibufferp)
-             (eq completing-read-function #'completing-read-default))
+  (when (minibufferp)
     (let ((content (minibuffer-contents-no-properties)))
       ;; When the current minibuffer content matches a candidate, return it!
       (if (test-completion content
@@ -5617,17 +5622,37 @@ automatically previewed."
 
 (defun consult--default-completion-list-candidate ()
   "Return current candidate at point from completions buffer."
-  ;; See feature request bug#74408 for `completion-list-candidate-at-point'.
-  (let (beg)
-    (when (and
-           (derived-mode-p 'completion-list-mode)
-           (cond
-            ((and (not (eobp)) (get-text-property (point) 'completion--string))
-             (setq beg (1+ (point))))
-            ((and (not (bobp)) (get-text-property (1- (point)) 'completion--string))
-             (setq beg (point)))))
-      (get-text-property (previous-single-property-change beg 'completion--string)
-                         'completion--string))))
+  (when-let ((buffer
+              (if (derived-mode-p #'completion-list-mode)
+                  ;; Use current buffer if already inside *Completions* buffer
+                  (current-buffer)
+                ;; Otherwise check if there is an active *Completions* buffer
+                ;; which can be controlled remotely from the minibuffer.  See
+                ;; the setting `minibuffer-visible-completions'.
+                (when-let ((bound-and-true-p minibuffer-visible-completions)
+                           (window (get-buffer-window "*Completions*" 'visible))
+                           (buffer (window-buffer window))
+                           ((eq (buffer-local-value 'completion-reference-buffer buffer)
+                                (window-buffer (active-minibuffer-window)))))
+                  buffer))))
+    (with-current-buffer buffer
+      ;; TODO Use `completion-list-candidate-at-point' on Emacs 31
+      (let (beg)
+        (when (cond
+               ((and (not (eobp)) (get-text-property (point) 'completion--string))
+                (setq beg (1+ (point))))
+               ((and (not (bobp)) (get-text-property (1- (point)) 'completion--string))
+                (setq beg (point))))
+          (get-text-property (previous-single-property-change beg 'completion--string)
+                             'completion--string))))))
+
+(defun consult--default-completion-list-refresh ()
+  "Refresh default completion UI."
+  (when (and (bound-and-true-p completion-eager-update)
+             (bound-and-true-p completion-eager-display)
+             (not (bound-and-true-p vertico-mode))
+             (not (bound-and-true-p icomplete-mode)))
+    (minibuffer-completion-help)))
 
 ;;;;; Integration: Vertico
 
@@ -5652,8 +5677,8 @@ automatically previewed."
 
 ;;;;; Integration: Mct
 
-(with-eval-after-load 'mct (add-hook 'consult--completion-refresh-hook
-                                     'mct--live-completions-refresh))
+(with-eval-after-load 'mct
+  (add-hook 'consult--completion-refresh-hook 'mct--live-completions-refresh))
 
 ;;;;; Integration: Icomplete
 

@@ -64,6 +64,7 @@ Table of Contents
 .. 2. Custom variables
 .. 3. Project support
 .. 4. Fine-tuning
+.. 5. Default completion UI with auto update
 4. Recommended packages
 5. Bug reports
 6. Hacking
@@ -396,10 +397,6 @@ Table of Contents
   • `consult-theme': Select a theme and disable all currently enabled
     themes.  Supports live preview of the theme while scrolling through
     the candidates.
-  • `consult-preview-at-point' and `consult-preview-at-point-mode':
-    Command and minor mode which previews the candidate at point in the
-    `*Completions*' buffer. This mode is relevant if you use [Mct] or
-    the default `*Completions*' UI.
   • `consult-completion-in-region': In case you don't use [Corfu] as
     your in-buffer completion UI, this function can be set as
     `completion-in-region-function'. Then your minibuffer completion UI
@@ -418,8 +415,6 @@ Table of Contents
     completion for example via Corfu works properly since the completion
     takes place directly in the original buffer.
 
-
-[Mct] <https://git.sr.ht/~protesilaos/mct>
 
 [Corfu] <https://github.com/minad/corfu>
 
@@ -886,10 +881,6 @@ Table of Contents
   │          ("M-s" . consult-history)                 ;; orig. next-matching-history-element
   │          ("M-r" . consult-history))                ;; orig. previous-matching-history-element
   │ 
-  │   ;; Enable automatic preview at point in the *Completions* buffer. This is
-  │   ;; relevant when you use the default completion UI.
-  │   :hook (completion-list-mode . consult-preview-at-point-mode)
-  │ 
   │   ;; The :init configuration is always executed (Not lazy)
   │   :init
   │ 
@@ -1098,6 +1089,31 @@ Table of Contents
 [Consult wiki] <https://github.com/minad/consult/wiki>
 
 [multi sources] See section 2.4
+
+
+3.5 Default completion UI with auto update
+──────────────────────────────────────────
+
+  I recommend to use Vertico for best performance and an intuitive UI.
+  Nevertheless the default completions buffer UI works decently and
+  supports automatic update in newer Emacs versions. I suggest the
+  following configuration on Emacs 31:
+
+  ┌────
+  │ (setq
+  │  ;; One column view with annotations
+  │  completions-format 'one-column
+  │  completions-detailed t
+  │  completions-group t
+  │  ;; Allow navigating from the minibuffer
+  │  minibuffer-visible-completions t
+  │  ;; Show completions eagerly and update automatically
+  │  completion-eager-update t
+  │  completion-eager-display t
+  │  ;; Disable noise (inline help also blocks input)
+  │  completion-show-help nil
+  │  completion-show-inline-help nil)
+  └────
 
 
 4 Recommended packages
