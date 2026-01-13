@@ -5,7 +5,7 @@
 ;; Author: Daniel Mendler and Consult contributors
 ;; Maintainer: Daniel Mendler <mail@daniel-mendler.de>
 ;; Created: 2020
-;; Version: 3.1
+;; Version: 3.2
 ;; Package-Requires: ((emacs "29.1") (compat "30"))
 ;; URL: https://github.com/minad/consult
 ;; Keywords: matching, files, completion
@@ -439,7 +439,7 @@ than the `cursor' face to avoid confusion.")
 Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
 
 (defface consult-narrow-indicator
-  '((t :inherit warning))
+  '((t :inherit warning :weight normal))
   "Face used for the narrowing indicator.")
 
 (defface consult-async-running
@@ -457,6 +457,10 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
 (defface consult-async-split
   '((t :inherit font-lock-negation-char-face))
   "Face used to highlight punctuation character.")
+
+(defface consult-async-option
+  '((t :inherit warning :weight normal))
+  "Face used to highlight asynchronous command options.")
 
 (defface consult-help
   '((t :inherit shadow))
@@ -491,7 +495,7 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
   "Face used to highlight line number prefixes.")
 
 (defface consult-line-number-wrapped
-  '((t :inherit consult-line-number-prefix :inherit font-lock-warning-face))
+  '((t :inherit consult-line-number-prefix :inherit warning :weight normal))
   "Face used to highlight line number prefixes after wrap around.")
 
 (defface consult-separator
@@ -670,11 +674,22 @@ Turn ARG into a list, and for each element either:
 (defun consult--command-split (str)
   "Return command argument and options list given input STR."
   (save-match-data
-    (let ((opts (when (string-match " +--\\( +\\|\\'\\)" str)
-                  (prog1 (substring str (match-end 0))
-                    (setq str (substring str 0 (match-beginning 0)))))))
-      ;; split-string-and-unquote fails if the quotes are invalid.  Ignore it.
-      (cons str (and opts (ignore-errors (split-string-and-unquote opts)))))))
+    (let ((opts ""))
+      (setq str (substring-no-properties str))
+      ;; Find first option
+      (when (string-match "\\(?:\\`\\| \\)-" str)
+        (setq opts (substring str (1- (match-end 0)))
+              str (substring str 0 (match-beginning 0))))
+      ;; Replace backlash-escaped dashes
+      (setq str (replace-regexp-in-string "\\(\\`\\| \\)\\-" "\\1-" str))
+      ;; Options end with double dash
+      (when (string-match "\\(\\`\\| \\)--\\(?: \\|\\'\\)" opts)
+        (setq str (concat str " " (substring opts (match-end 0)))
+              opts (substring opts 0 (match-beginning 0))))
+      ;; Use `split-string-shell-command' here instead of
+      ;; `split-string-and-unquote' since it handles more flexible input -
+      ;; double quoted strings, single quoted strings and escaped spaces.
+      (cons str (split-string-shell-command (string-trim opts))))))
 
 (defmacro consult--keep! (list form)
   "Evaluate FORM for every element of LIST and keep the non-nil results."
@@ -2002,7 +2017,7 @@ determines the separator.  Examples: \"/async/filter\",
       (save-match-data
         (let ((q (regexp-quote (substring str 0 1))))
           (string-match (concat "^" q "\\([^" q "]*\\)\\(" q "\\)?") str)
-          ;; Force update it two punctuation characters are entered.
+          ;; Force update if two punctuation characters are entered.
           `(,(propertize (match-string 1 str) 'consult--force (match-end 2))
             ,(match-end 0)
             ;; List of highlights
@@ -2288,8 +2303,8 @@ restarted and defaults to `consult-async-input-debounce'."
   "Async function with static ITEMS."
   (consult--async-dynamic
    (lambda (input)
-     (pcase-let* ((`(,re . ,hl) (consult--compile-regexp
-                                 input 'emacs completion-ignore-case)))
+     (pcase-let ((`(,re . ,hl) (consult--compile-regexp
+                                input 'emacs completion-ignore-case)))
        (if re
            (let* ((completion-regexp-list re)
                   (all (all-completions "" items)))
@@ -2422,6 +2437,26 @@ configured by `consult-async-split-style'."
            (funcall sink input)))
         (_ (funcall sink action))))))
 
+(defun consult--async-options ()
+  "Async function, which highlights commands options in the input string."
+  (lambda (sink)
+    (lambda (action)
+      (when (stringp action)
+        (save-match-data
+          (when-let* ((iend (save-excursion
+                              (goto-char (minibuffer-prompt-end))
+                              (search-forward action nil t)))
+                      (ibeg (- iend (length action))))
+            (remove-list-of-text-properties ibeg iend '(face rear-nonsticky))
+            (when-let* (((string-match "\\(?:\\`\\| \\)\\(-\\)" action))
+                        (beg (match-beginning 1))
+                        ((string-match "\\(?:\\`\\| \\)\\(--\\)\\(?: \\|\\'\\)\\|\\'" action))
+                        (end (or (match-end 1) (match-end 0))))
+              (add-text-properties (+ ibeg beg) (+ ibeg end)
+                                   '( face consult-async-option
+                                      rear-nonsticky t))))))
+      (funcall sink action))))
+
 (defun consult--async-indicator ()
   "Async function with a state indicator overlay."
   (lambda (sink)
@@ -2462,7 +2497,7 @@ PROPS are optional properties passed to `make-process'."
         (pcase action
           ((pred stringp)
            (funcall sink action)
-           (let* ((args (funcall builder action)))
+           (let ((args (funcall builder action)))
              (unless (stringp (car args))
                (setq args (car args)))
              (unless (equal args last-args)
@@ -2691,6 +2726,7 @@ THROTTLE and DEBOUNCE are passed to `consult--async-throttle'.
 Other PROPS are passed to `make-process'."
   (declare (indent 1))
   (consult--async-pipeline
+   (consult--async-options)
    (consult--async-min-input min-input)
    (consult--async-throttle throttle debounce)
    (apply #'consult--async-process builder
@@ -4821,21 +4857,6 @@ If NORECORD is non-nil, do not record the buffer switch in the buffer list."
 
 (consult--define-state buffer)
 
-(define-obsolete-variable-alias 'consult--source-bookmark 'consult-source-bookmark "2.9")
-(define-obsolete-variable-alias 'consult--source-buffer 'consult-source-buffer "2.9")
-(define-obsolete-variable-alias 'consult--source-buffer-register 'consult-source-buffer-register "2.9")
-(define-obsolete-variable-alias 'consult--source-file-register 'consult-source-file-register "2.9")
-(define-obsolete-variable-alias 'consult--source-hidden-buffer 'consult-source-hidden-buffer "2.9")
-(define-obsolete-variable-alias 'consult--source-modified-buffer 'consult-source-modified-buffer "2.9")
-(define-obsolete-variable-alias 'consult--source-other-buffer 'consult-source-other-buffer "2.9")
-(define-obsolete-variable-alias 'consult--source-project-buffer 'consult-source-project-buffer "2.9")
-(define-obsolete-variable-alias 'consult--source-project-buffer-hidden 'consult-source-project-buffer-hidden "2.9")
-(define-obsolete-variable-alias 'consult--source-project-recent-file 'consult-source-project-recent-file "2.9")
-(define-obsolete-variable-alias 'consult--source-project-recent-file-hidden 'consult-source-project-recent-file-hidden "2.9")
-(define-obsolete-variable-alias 'consult--source-project-root 'consult-source-project-root "2.9")
-(define-obsolete-variable-alias 'consult--source-project-root-hidden 'consult-source-project-root-hidden "2.9")
-(define-obsolete-variable-alias 'consult--source-recent-file 'consult-source-recent-file "2.9")
-
 (defvar consult-source-bookmark
   `( :name     "Bookmark"
      :narrow   ?m
@@ -5285,7 +5306,7 @@ The input string is split at a punctuation character, which is given as
 the first character of the input string.  The format is similar to
 Perl-style regular expressions, e.g., /regexp/.  Furthermore command
 line options can be passed to grep, specified behind --.  The overall
-prompt input has the form `#async-input -- grep-opts#filter-string'.
+prompt input has the form `#async-input --grep-opt#filter-string'.
 
 Note that the grep input string is transformed from Emacs regular
 expressions to Posix regular expressions.  Always enter Emacs regular
@@ -5301,7 +5322,7 @@ Here we give a few example inputs:
 #alpha beta         : Search for alpha and beta in any order.
 #alpha.*beta        : Search for alpha before beta.
 #\\(alpha\\|beta\\) : Search for alpha or beta (Note Emacs syntax!)
-#word -- -C3        : Search for word, include 3 lines as context
+#word -C3           : Search for word, include 3 lines as context
 #first#second       : Search for first, quick filter for second.
 
 The symbol at point is added to the future history."
@@ -5404,7 +5425,7 @@ INITIAL is initial input."
       (pcase-let* ((`(,arg . ,opts) (consult--command-split input))
                    ;; ignore-case=t since -iregex is used below
                    (`(,re . ,hl) (consult--compile-regexp arg type t)))
-        (when re
+        (when (or re opts) ;; Either option or regexp must be provided
           (cons (append cmd
                         (cdr (mapcan
                               (lambda (x)
@@ -5449,7 +5470,7 @@ regarding the asynchronous search and the arguments."
                   (apply-partially #'consult--highlight-regexps
                                    (list (regexp-quote arg)) ignore-case))
           (pcase-let ((`(,re . ,hl) (consult--compile-regexp arg 'pcre ignore-case)))
-            (when re
+             (when (or re opts) ;; Either option or regexp must be provided
               (cons (append cmd
                             (mapcan (lambda (x) `("--and" ,x)) re)
                             opts
@@ -5476,7 +5497,7 @@ regarding the asynchronous search and the arguments."
     (unless (string-blank-p arg)
       (cons (append (consult--build-args consult-locate-args)
                     (consult--split-escaped arg) opts)
-            (cdr (consult--default-regexp-compiler input 'basic t))))))
+            (cdr (consult--default-regexp-compiler arg 'basic t))))))
 
 ;;;###autoload
 (defun consult-locate (&optional initial)
