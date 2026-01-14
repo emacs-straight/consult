@@ -680,7 +680,7 @@ Turn ARG into a list, and for each element either:
       (when (string-match "\\(?:\\`\\| \\)-" str)
         (setq opts (substring str (1- (match-end 0)))
               str (substring str 0 (match-beginning 0))))
-      ;; Replace backlash-escaped dashes
+      ;; Replace backslash-escaped dashes
       (setq str (replace-regexp-in-string "\\(\\`\\| \\)\\-" "\\1-" str))
       ;; Options end with double dash
       (when (string-match "\\(\\`\\| \\)--\\(?: \\|\\'\\)" opts)
@@ -2431,9 +2431,8 @@ configured by `consult-async-split-style'."
                      (end (minibuffer-prompt-end)))
            ;; Highlight punctuation characters
            (pcase-dolist (`(,x . ,y) highlights)
-             (let ((x (+ end x)) (y (+ end y)))
-               (add-text-properties x y '(consult--split t rear-nonsticky t))
-               (add-face-text-property x y 'consult-async-split)))
+             (add-text-properties (+ end x) (+ end y)
+                                  '(face consult-async-split consult--split t rear-nonsticky t)))
            (funcall sink input)))
         (_ (funcall sink action))))))
 
