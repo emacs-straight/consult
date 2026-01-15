@@ -1,4 +1,4 @@
-This is docHYepNy.info, produced by makeinfo version 7.1.1 from
+This is consult.info, produced by makeinfo version 7.1.1 from
 consult.texi.
 
 INFO-DIR-SECTION Emacs misc features
@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: docHYepNy.info,  Node: Top,  Next: Available commands,  Up: (dir)
+File: consult.info,  Node: Top,  Next: Available commands,  Up: (dir)
 
 consult.el - Search and navigate via completing-read
 ****************************************************
@@ -112,7 +112,7 @@ Indices
 
 
 
-File: docHYepNy.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
+File: consult.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
 
 1 Available commands
 ********************
@@ -145,7 +145,7 @@ their descriptions.
 * Miscellaneous::                Various other useful commands
 
 
-File: docHYepNy.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
+File: consult.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
 
 1.1 Virtual Buffers
 ===================
@@ -189,7 +189,7 @@ File: docHYepNy.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available com
      ‘recentf-mode’ enables tracking of recent files.
 
 
-File: docHYepNy.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
+File: consult.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
 
 1.2 Editing
 ===========
@@ -207,7 +207,7 @@ File: docHYepNy.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  
    • ‘consult-kmacro’: Select macro from the macro ring and execute it.
 
 
-File: docHYepNy.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
+File: consult.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
 
 1.3 Register
 ============
@@ -238,7 +238,7 @@ File: docHYepNy.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: A
         • ‘C-u 100 M-' x’: Store number in register ‘x’.
 
 
-File: docHYepNy.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
+File: consult.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
 
 1.4 Navigation
 ==============
@@ -262,7 +262,7 @@ File: docHYepNy.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Av
      imenu-anywhere (https://github.com/vspinu/imenu-anywhere).
 
 
-File: docHYepNy.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
+File: consult.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
 
 1.5 Search
 ==========
@@ -295,7 +295,7 @@ File: docHYepNy.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  U
      region restricts the filtering.
 
 
-File: docHYepNy.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
+File: consult.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
 
 1.6 Grep and Find
 =================
@@ -334,7 +334,7 @@ File: docHYepNy.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  
      ‘consult-find’ work just like those for the consult grep commands.
 
 
-File: docHYepNy.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
+File: consult.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
 
 1.7 Compilation
 ===============
@@ -350,7 +350,7 @@ File: docHYepNy.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find
      ‘xref-show-xrefs-function’ and ‘xref-show-definitions-function’.
 
 
-File: docHYepNy.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
+File: consult.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
 
 1.8 Histories
 =============
@@ -373,7 +373,7 @@ File: docHYepNy.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: A
      ‘isearch-edit-string’.
 
 
-File: docHYepNy.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
+File: consult.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
 
 1.9 Modes
 =========
@@ -386,7 +386,7 @@ File: docHYepNy.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Avai
      local-minor/global-minor/major mode via the keys ‘l/g/m’.
 
 
-File: docHYepNy.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
+File: consult.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
 
 1.10 Org Mode
 =============
@@ -401,7 +401,7 @@ File: docHYepNy.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available
      live preview and recursive editing.
 
 
-File: docHYepNy.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
+File: consult.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
 
 1.11 Help
 =========
@@ -426,7 +426,7 @@ File: docHYepNy.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: A
      (consult-info-define "magit")
 
 
-File: docHYepNy.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
+File: consult.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
 1.12 Miscellaneous
 ==================
@@ -453,7 +453,7 @@ File: docHYepNy.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
      place directly in the original buffer.
 
 
-File: docHYepNy.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
+File: consult.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
 
 2 Special features
 ******************
@@ -477,7 +477,7 @@ advanced features.
 * Embark integration::           Actions, Grep/Occur-buffer export
 
 
-File: docHYepNy.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
+File: consult.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
 
 2.1 Live previews
 =================
@@ -558,7 +558,7 @@ experience.
                           :debounce 1 any))
 
 
-File: docHYepNy.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
+File: consult.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
 
 2.2 Narrowing and grouping
 ==========================
@@ -593,7 +593,7 @@ keys are automatically shown in the which-key window after pressing the
 ‘consult-narrow-key’.
 
 
-File: docHYepNy.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
+File: consult.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
 
 2.3 Asynchronous search
 =======================
@@ -678,7 +678,7 @@ status:
      provided.
 
 
-File: docHYepNy.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
+File: consult.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
 
 2.4 Multiple sources
 ====================
@@ -782,7 +782,7 @@ the internal ‘consult--multi’ API.  The function ‘consult--multi’ can be
 used to create new multi-source commands.
 
 
-File: docHYepNy.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
+File: consult.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
 
 2.5 Embark integration
 ======================
@@ -827,7 +827,7 @@ workflows are symmetric.
      ‘wdired-change-to-wdired-mode’ for editing.
 
 
-File: docHYepNy.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
+File: consult.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
 
 3 Configuration
 ***************
@@ -854,7 +854,7 @@ binding, since they use lambdas and closures.
 * Default completion UI with auto update::
 
 
-File: docHYepNy.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
+File: consult.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
 
 3.1 Use-package example
 =======================
@@ -977,7 +977,7 @@ additional configuration examples.
      )
 
 
-File: docHYepNy.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
+File: consult.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
 
 3.2 Custom variables
 ====================
@@ -1035,7 +1035,7 @@ consult-themes                     List of themes to be presented for selection
 consult-widen-key                  Widening key during completion
 
 
-File: docHYepNy.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
+File: consult.info,  Node: Project support,  Next: Fine-tuning,  Prev: Custom variables,  Up: Configuration
 
 3.3 Project support
 ===================
@@ -1062,7 +1062,7 @@ possible to configure alternative methods via the customization variable
      (setq consult-project-function nil)
 
 
-File: docHYepNy.info,  Node: Fine-tuning,  Next: Default completion UI with auto update,  Prev: Project support,  Up: Configuration
+File: consult.info,  Node: Fine-tuning,  Next: Default completion UI with auto update,  Prev: Project support,  Up: Configuration
 
 3.4 Fine-tuning of individual commands
 ======================================
@@ -1132,7 +1132,7 @@ by the following techniques:
   5. Write or propose a patch.
 
 
-File: docHYepNy.info,  Node: Default completion UI with auto update,  Prev: Fine-tuning,  Up: Configuration
+File: consult.info,  Node: Default completion UI with auto update,  Prev: Fine-tuning,  Up: Configuration
 
 3.5 Default completion UI with auto update
 ==========================================
@@ -1150,7 +1150,7 @@ following configuration on Emacs 31:
       ;; Sort candidates by history position
       completions-sort 'historical
       ;; Allow navigating from the minibuffer
-      minibuffer-visible-completions t
+      minibuffer-visible-completions 'up-down
       ;; Show completions eagerly and update automatically
       completion-eager-update t
       completion-eager-display t
@@ -1159,7 +1159,7 @@ following configuration on Emacs 31:
       completion-show-inline-help nil)
 
 
-File: docHYepNy.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
+File: consult.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
 4 Recommended packages
 **********************
@@ -1205,7 +1205,7 @@ Consult wiki.  These packages integrate Consult with special programs or
 with other packages in the wider Emacs ecosystem.
 
 
-File: docHYepNy.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
+File: consult.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
 
 5 Bug reports
 *************
@@ -1268,7 +1268,7 @@ report:
 lexical binding.  Consult relies on lambdas and lexical closures.
 
 
-File: docHYepNy.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
+File: consult.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
 
 6 Hacking
 *********
@@ -1280,7 +1280,7 @@ File: docHYepNy.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports, 
 * Live preview::
 
 
-File: docHYepNy.info,  Node: Creating simple commands,  Next: Creating asynchronous completion commands,  Up: Hacking
+File: consult.info,  Node: Creating simple commands,  Next: Creating asynchronous completion commands,  Up: Hacking
 
 6.1 Creating simple commands
 ============================
@@ -1334,7 +1334,7 @@ look up the value.
       :lookup #'consult--lookup-candidate)
 
 
-File: docHYepNy.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Prev: Creating simple commands,  Up: Hacking
+File: consult.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Prev: Creating simple commands,  Up: Hacking
 
 6.2 Creating asynchronous completion commands
 =============================================
@@ -1386,7 +1386,7 @@ and ‘consult--process-collection’ can be used for ‘consult--multi’
 sources.  Specify them as ‘:async’ field of the source plist.
 
 
-File: docHYepNy.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
+File: consult.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
 
 6.3 Live preview
 ================
@@ -1419,7 +1419,7 @@ action argument.  Once defined, we can use this preview function in
       :state #'testibus--preview)
 
 
-File: docHYepNy.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
+File: consult.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
 
 7 Contributions
 ***************
@@ -1439,7 +1439,7 @@ contribute to the Consult wiki (https://github.com/minad/consult/wiki),
 in case you want to share small configuration or command snippets.
 
 
-File: docHYepNy.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
+File: consult.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
 
 8 Acknowledgments
 *****************
@@ -1489,7 +1489,7 @@ Manuel Uberti (https://github.com/manuel-uberti), Stefan Monnier
 (https://protesilaos.com).
 
 
-File: docHYepNy.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
+File: consult.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
 9 Indices
 *********
@@ -1500,7 +1500,7 @@ File: docHYepNy.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 * Concept index::                List of all Consult-specific concepts
 
 
-File: docHYepNy.info,  Node: Function index,  Next: Concept index,  Up: Indices
+File: consult.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
 9.1 Function index
 ==================
@@ -1558,7 +1558,7 @@ File: docHYepNy.info,  Node: Function index,  Next: Concept index,  Up: Indices
 * consult-yank-replace:                  Editing.               (line 6)
 
 
-File: docHYepNy.info,  Node: Concept index,  Prev: Function index,  Up: Indices
+File: consult.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 9.2 Concept index
 =================
@@ -1591,43 +1591,43 @@ File: docHYepNy.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 
 Tag Table:
-Node: Top223
-Node: Available commands5292
-Node: Virtual Buffers6869
-Node: Editing9046
-Node: Register9902
-Node: Navigation11623
-Node: Search12866
-Node: Grep and Find14777
-Node: Compilation17192
-Node: Histories17904
-Node: Modes19124
-Node: Org Mode19604
-Node: Help20220
-Node: Miscellaneous21424
-Node: Special features22857
-Node: Live previews23986
-Node: Narrowing and grouping28123
-Node: Asynchronous search30126
-Node: Multiple sources34062
-Node: Embark integration38959
-Node: Configuration41179
-Node: Use-package example42291
-Node: Custom variables48616
-Node: Project support52549
-Node: Fine-tuning53814
-Node: Default completion UI with auto update56820
-Node: Recommended packages57817
-Node: Bug reports59940
-Node: Hacking62935
-Node: Creating simple commands63150
-Node: Creating asynchronous completion commands64783
-Node: Live preview66777
-Node: Contributions67974
-Node: Acknowledgments68886
-Node: Indices71419
-Node: Function index71657
-Node: Concept index75305
+Node: Top221
+Node: Available commands5288
+Node: Virtual Buffers6863
+Node: Editing9038
+Node: Register9892
+Node: Navigation11611
+Node: Search12852
+Node: Grep and Find14761
+Node: Compilation17174
+Node: Histories17884
+Node: Modes19102
+Node: Org Mode19580
+Node: Help20194
+Node: Miscellaneous21396
+Node: Special features22827
+Node: Live previews23954
+Node: Narrowing and grouping28089
+Node: Asynchronous search30090
+Node: Multiple sources34024
+Node: Embark integration38919
+Node: Configuration41137
+Node: Use-package example42247
+Node: Custom variables48570
+Node: Project support52501
+Node: Fine-tuning53764
+Node: Default completion UI with auto update56768
+Node: Recommended packages57770
+Node: Bug reports59891
+Node: Hacking62884
+Node: Creating simple commands63097
+Node: Creating asynchronous completion commands64728
+Node: Live preview66720
+Node: Contributions67915
+Node: Acknowledgments68825
+Node: Indices71356
+Node: Function index71592
+Node: Concept index75238
 
 End Tag Table
 
