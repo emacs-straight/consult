@@ -517,9 +517,8 @@ be considered.
       consult-bookmark consult-recent-file consult-xref
       consult-source-bookmark consult-source-file-register
       consult-source-recent-file consult-source-project-recent-file
-      ;; my/command-wrapping-consult    ;; disable auto previews inside my command
-      :preview-key '(:debounce 0.4 any) ;; Option 1: Delay preview
-      ;; :preview-key "M-.")            ;; Option 2: Manual preview
+      :preview-key '(:debounce 0.4 any)) ;; Option 1: Delay preview
+      ;; :preview-key "M-."              ;; Option 2: Manual preview
 
    In this case one may wonder what the difference is between using an
 Embark action on the current candidate in comparison to a manually
@@ -1607,27 +1606,27 @@ Node: Help20194
 Node: Miscellaneous21396
 Node: Special features22827
 Node: Live previews23954
-Node: Narrowing and grouping28089
-Node: Asynchronous search30090
-Node: Multiple sources34024
-Node: Embark integration38919
-Node: Configuration41137
-Node: Use-package example42247
-Node: Custom variables48570
-Node: Project support52501
-Node: Fine-tuning53764
-Node: Default completion UI with auto update56768
-Node: Recommended packages57770
-Node: Bug reports59891
-Node: Hacking62884
-Node: Creating simple commands63097
-Node: Creating asynchronous completion commands64728
-Node: Live preview66720
-Node: Contributions67915
-Node: Acknowledgments68825
-Node: Indices71356
-Node: Function index71592
-Node: Concept index75238
+Node: Narrowing and grouping28008
+Node: Asynchronous search30009
+Node: Multiple sources33943
+Node: Embark integration38838
+Node: Configuration41056
+Node: Use-package example42166
+Node: Custom variables48489
+Node: Project support52420
+Node: Fine-tuning53683
+Node: Default completion UI with auto update56687
+Node: Recommended packages57689
+Node: Bug reports59810
+Node: Hacking62803
+Node: Creating simple commands63016
+Node: Creating asynchronous completion commands64647
+Node: Live preview66639
+Node: Contributions67834
+Node: Acknowledgments68744
+Node: Indices71275
+Node: Function index71511
+Node: Concept index75157
 
 End Tag Table
 
