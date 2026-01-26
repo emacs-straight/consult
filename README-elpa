@@ -1135,6 +1135,9 @@ Table of Contents
   │  ;; Disable noise (inline help also blocks input)
   │  completion-show-help nil
   │  completion-show-inline-help nil)
+  │ 
+  │ ;; Unbind `minibuffer-complete-word'
+  │ (keymap-unset minibuffer-local-completion-map "SPC")
   └────
 
 

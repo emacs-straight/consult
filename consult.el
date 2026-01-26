@@ -498,13 +498,6 @@ Used by `consult-completion-in-region', `consult-yank' and `consult-history'.")
   '((t :inherit consult-line-number-prefix :inherit warning :weight normal))
   "Face used to highlight line number prefixes after wrap around.")
 
-(defface consult-separator
-  '((((class color) (min-colors 88) (background light))
-     :foreground "#ccc")
-    (((class color) (min-colors 88) (background dark))
-     :foreground "#333"))
-  "Face used for thin line separators in `consult-register-window'.")
-
 ;;;; Input history variables
 
 (defvar consult--path-history nil)

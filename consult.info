@@ -1157,6 +1157,9 @@ following configuration on Emacs 31:
       completion-show-help nil
       completion-show-inline-help nil)
 
+     ;; Unbind `minibuffer-complete-word'
+     (keymap-unset minibuffer-local-completion-map "SPC")
+
 
 File: consult.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
@@ -1616,17 +1619,17 @@ Node: Custom variables48489
 Node: Project support52420
 Node: Fine-tuning53683
 Node: Default completion UI with auto update56687
-Node: Recommended packages57689
-Node: Bug reports59810
-Node: Hacking62803
-Node: Creating simple commands63016
-Node: Creating asynchronous completion commands64647
-Node: Live preview66639
-Node: Contributions67834
-Node: Acknowledgments68744
-Node: Indices71275
-Node: Function index71511
-Node: Concept index75157
+Node: Recommended packages57790
+Node: Bug reports59911
+Node: Hacking62904
+Node: Creating simple commands63117
+Node: Creating asynchronous completion commands64748
+Node: Live preview66740
+Node: Contributions67935
+Node: Acknowledgments68845
+Node: Indices71376
+Node: Function index71612
+Node: Concept index75258
 
 End Tag Table
 
