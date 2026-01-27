@@ -1153,6 +1153,7 @@ following configuration on Emacs 31:
       ;; Show completions eagerly and update automatically
       completion-eager-update t
       completion-eager-display t
+      completion-auto-help 'always
       ;; Disable noise (inline help also blocks input)
       completion-show-help nil
       completion-show-inline-help nil)
@@ -1619,17 +1620,17 @@ Node: Custom variables48489
 Node: Project support52420
 Node: Fine-tuning53683
 Node: Default completion UI with auto update56687
-Node: Recommended packages57790
-Node: Bug reports59911
-Node: Hacking62904
-Node: Creating simple commands63117
-Node: Creating asynchronous completion commands64748
-Node: Live preview66740
-Node: Contributions67935
-Node: Acknowledgments68845
-Node: Indices71376
-Node: Function index71612
-Node: Concept index75258
+Node: Recommended packages57825
+Node: Bug reports59946
+Node: Hacking62939
+Node: Creating simple commands63152
+Node: Creating asynchronous completion commands64783
+Node: Live preview66775
+Node: Contributions67970
+Node: Acknowledgments68880
+Node: Indices71411
+Node: Function index71647
+Node: Concept index75293
 
 End Tag Table
 
