@@ -1154,9 +1154,8 @@ following configuration on Emacs 31:
       completion-eager-update t
       completion-eager-display t
       completion-auto-help 'always
-      ;; Disable noise (inline help also blocks input)
-      completion-show-help nil
-      completion-show-inline-help nil)
+      ;; Disable noise in the *Completions* buffer
+      completion-show-help nil)
 
      ;; Unbind `minibuffer-complete-word'
      (keymap-unset minibuffer-local-completion-map "SPC")
@@ -1620,17 +1619,17 @@ Node: Custom variables48489
 Node: Project support52420
 Node: Fine-tuning53683
 Node: Default completion UI with auto update56687
-Node: Recommended packages57825
-Node: Bug reports59946
-Node: Hacking62939
-Node: Creating simple commands63152
-Node: Creating asynchronous completion commands64783
-Node: Live preview66775
-Node: Contributions67970
-Node: Acknowledgments68880
-Node: Indices71411
-Node: Function index71647
-Node: Concept index75293
+Node: Recommended packages57783
+Node: Bug reports59904
+Node: Hacking62897
+Node: Creating simple commands63110
+Node: Creating asynchronous completion commands64741
+Node: Live preview66733
+Node: Contributions67928
+Node: Acknowledgments68838
+Node: Indices71369
+Node: Function index71605
+Node: Concept index75251
 
 End Tag Table
 

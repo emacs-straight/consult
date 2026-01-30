@@ -6,6 +6,8 @@
 1 Development
 ═════════════
 
+  • Bugfixes.
+  • Improve default completion UI support on Emacs 31.
   • Remove `consult-separator' face.
 
 
@@ -120,11 +122,4 @@
   • `consult--read', `consult--prompt': Add `:command' keyword
     argument. Avoid overriding `this-command' for `consult-xref' and
     `consult-completion-in-region'.
-
-
-11 Version 2.4 (2025-05-21)
-═══════════════════════════
-
-  • `consult-register-store': Add `M-b' action to store the buffer in a
-    register.
   …  …
