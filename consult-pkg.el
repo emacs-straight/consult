@@ -1,2 +1,2 @@
 ;; Generated package description from consult.el  -*- mode: lisp-data; no-byte-compile: t -*-
-(define-package "consult" "3.3.0.20260129.184038" "Search and navigate via completing-read" '((emacs "29.1") (compat "30")) :commit "a27638904c8a5509fad35f730ca4b7a591c2c79e" :maintainer '("Daniel Mendler" . "mail@daniel-mendler.de") :keywords '("matching" "files" "completion") :url "https://github.com/minad/consult")
+(define-package "consult" "3.3.0.20260130.130136" "Search and navigate via completing-read" '((emacs "29.1") (compat "30")) :commit "e75ff50ebab9705bdd89b2f46c6347ee041f15a9" :maintainer '("Daniel Mendler" . "mail@daniel-mendler.de") :keywords '("matching" "files" "completion") :url "https://github.com/minad/consult")
