@@ -9,6 +9,8 @@
   • Bugfixes.
   • Improve default completion UI support on Emacs 31.
   • Remove `consult-separator' face.
+  • Remove obsolete `consult-preview-at-point-mode' and
+    `consult-preview-at-point'.
 
 
 2 Version 3.3 (2026-01-18)
@@ -120,6 +122,5 @@
   • `consult-compile-error': Add prefix argument to jump to error
     message in the compilation buffer instead of error location.
   • `consult--read', `consult--prompt': Add `:command' keyword
-    argument. Avoid overriding `this-command' for `consult-xref' and
-    `consult-completion-in-region'.
+    argument. Avoid
   …  …
