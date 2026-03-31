@@ -830,11 +830,10 @@ File: consult.info,  Node: Configuration,  Next: Recommended packages,  Prev: Sp
 3 Configuration
 ***************
 
-Consult can be installed from ELPA
-(https://elpa.gnu.org/packages/consult.html) or MELPA
-(https://melpa.org/#/consult) via the Emacs built-in package manager.
-Alternatively it can be directly installed from the development
-repository via other non-standard package managers.
+Consult can be installed from MELPA (https://melpa.org/#/consult) via
+the Emacs built-in package manager.  Alternatively it can be directly
+installed from the development repository via other non-standard package
+managers.
 
    There is the Consult wiki (https://github.com/minad/consult/wiki),
 where additional configuration examples can be contributed.
@@ -1427,17 +1426,14 @@ File: consult.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking
 
 Consult is a community effort, please participate in the discussions.
 Contributions are welcome, but you may want to discuss potential
-contributions first.  Since this package is part of GNU ELPA
-(https://elpa.gnu.org/packages/consult.html) contributions require a
-copyright assignment to the FSF.
-
-   If you have a proposal, take a look at the Consult issue tracker
-(https://github.com/minad/consult/issues) and the Consult wishlist
-(https://github.com/minad/consult/issues/6).  There have been many prior
-feature discussions.  Please search through the issue tracker, maybe
-your issue or feature request has already been discussed.  You can
-contribute to the Consult wiki (https://github.com/minad/consult/wiki),
-in case you want to share small configuration or command snippets.
+contributions first.  If you have a proposal, take a look at the Consult
+issue tracker (https://github.com/minad/consult/issues) and the Consult
+wishlist (https://github.com/minad/consult/issues/6).  There have been
+many prior feature discussions.  Please search through the issue
+tracker, maybe your issue or feature request has already been discussed.
+You can contribute to the Consult wiki
+(https://github.com/minad/consult/wiki), in case you want to share small
+configuration or command snippets.
 
 
 File: consult.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
@@ -1612,22 +1608,22 @@ Node: Asynchronous search30006
 Node: Multiple sources33940
 Node: Embark integration38835
 Node: Configuration41053
-Node: Use-package example42163
-Node: Custom variables48486
-Node: Project support52417
-Node: Fine-tuning53680
-Node: Default completion UI with auto update56684
-Node: Recommended packages57780
-Node: Bug reports59901
-Node: Hacking62894
-Node: Creating simple commands63107
-Node: Creating asynchronous completion commands64738
-Node: Live preview66730
-Node: Contributions67925
-Node: Acknowledgments68835
-Node: Indices71366
-Node: Function index71602
-Node: Concept index75248
+Node: Use-package example42111
+Node: Custom variables48434
+Node: Project support52365
+Node: Fine-tuning53628
+Node: Default completion UI with auto update56632
+Node: Recommended packages57728
+Node: Bug reports59849
+Node: Hacking62842
+Node: Creating simple commands63055
+Node: Creating asynchronous completion commands64686
+Node: Live preview66678
+Node: Contributions67873
+Node: Acknowledgments68637
+Node: Indices71168
+Node: Function index71404
+Node: Concept index75050
 
 End Tag Table
 

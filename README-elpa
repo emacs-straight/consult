@@ -806,8 +806,8 @@ Table of Contents
 3 Configuration
 ═══════════════
 
-  Consult can be installed from [ELPA] or [MELPA] via the Emacs built-in
-  package manager. Alternatively it can be directly installed from the
+  Consult can be installed from [MELPA] via the Emacs built-in package
+  manager.  Alternatively it can be directly installed from the
   development repository via other non-standard package managers.
 
   There is the [Consult wiki], where additional configuration examples
@@ -817,8 +817,6 @@ Table of Contents
   configuration. Many Consult-related code snippets require lexical
   binding, since they use lambdas and closures.
 
-
-[ELPA] <https://elpa.gnu.org/packages/consult.html>
 
 [MELPA] <https://melpa.org/#/consult>
 
@@ -1425,18 +1423,13 @@ Table of Contents
 
   Consult is a community effort, please participate in the discussions.
   Contributions are welcome, but you may want to discuss potential
-  contributions first. Since this package is part of [GNU ELPA]
-  contributions require a copyright assignment to the FSF.
+  contributions first. If you have a proposal, take a look at the
+  [Consult issue tracker] and the [Consult wishlist]. There have been
+  many prior feature discussions. Please search through the issue
+  tracker, maybe your issue or feature request has already been
+  discussed. You can contribute to the [Consult wiki], in case you want
+  to share small configuration or command snippets.
 
-  If you have a proposal, take a look at the [Consult issue tracker] and
-  the [Consult wishlist]. There have been many prior feature
-  discussions. Please search through the issue tracker, maybe your issue
-  or feature request has already been discussed. You can contribute to
-  the [Consult wiki], in case you want to share small configuration or
-  command snippets.
-
-
-[GNU ELPA] <https://elpa.gnu.org/packages/consult.html>
 
 [Consult issue tracker] <https://github.com/minad/consult/issues>
 
