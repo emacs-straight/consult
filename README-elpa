@@ -806,8 +806,8 @@ Table of Contents
 3 Configuration
 ═══════════════
 
-  Consult can be installed from [MELPA] via the Emacs built-in package
-  manager.  Alternatively it can be directly installed from the
+  Consult can be installed from [ELPA] or [MELPA] via the Emacs built-in
+  package manager. Alternatively it can be directly installed from the
   development repository via other non-standard package managers.
 
   There is the [Consult wiki], where additional configuration examples
@@ -817,6 +817,8 @@ Table of Contents
   configuration. Many Consult-related code snippets require lexical
   binding, since they use lambdas and closures.
 
+
+[ELPA] <https://elpa.gnu.org/packages/consult.html>
 
 [MELPA] <https://melpa.org/#/consult>
 
