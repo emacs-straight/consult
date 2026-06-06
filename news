@@ -3,8 +3,8 @@
                         ━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-1 Development
-═════════════
+1 Version 3.6 (2026-06-05)
+══════════════════════════
 
   • `consult--command-splitter': Require at least a single character
     behind the dash to recognize an option.
