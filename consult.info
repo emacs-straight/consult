@@ -654,7 +654,7 @@ examples apply to ripgrep:
      files.
    • ‘#.* -F’: Treat input as fixed string, and not as regular
      expression.
-   • ‘#foo bar -s’: Treat input as case sensitive (‘-s’), sensitive
+   • ‘#foo bar -s’: Treat input as case sensitive (‘-s’), insensitive
      (‘-i’), or smart case (‘-S’).
 
    Input can come after the options and the dash can be escaped:
@@ -1608,25 +1608,25 @@ Node: Special features22827
 Node: Live previews23954
 Node: Narrowing and grouping28008
 Node: Asynchronous search30009
-Node: Multiple sources33943
-Node: Embark integration38838
-Node: Configuration41056
-Node: Use-package example42166
-Node: Custom variables48489
-Node: Project support52420
-Node: Fine-tuning53683
-Node: Default completion UI with auto update56687
-Node: Recommended packages57783
-Node: Bug reports59904
-Node: Hacking62897
-Node: Creating simple commands63110
-Node: Creating asynchronous completion commands64741
-Node: Live preview66733
-Node: Contributions67928
-Node: Acknowledgments68692
-Node: Indices71223
-Node: Function index71459
-Node: Concept index75105
+Node: Multiple sources33945
+Node: Embark integration38840
+Node: Configuration41058
+Node: Use-package example42168
+Node: Custom variables48491
+Node: Project support52422
+Node: Fine-tuning53685
+Node: Default completion UI with auto update56689
+Node: Recommended packages57785
+Node: Bug reports59906
+Node: Hacking62899
+Node: Creating simple commands63112
+Node: Creating asynchronous completion commands64743
+Node: Live preview66735
+Node: Contributions67930
+Node: Acknowledgments68694
+Node: Indices71225
+Node: Function index71461
+Node: Concept index75107
 
 End Tag Table
 
