@@ -833,9 +833,9 @@ File: consult.info,  Node: Configuration,  Next: Recommended packages,  Prev: Sp
 
 Consult can be installed from ELPA
 (https://elpa.gnu.org/packages/consult.html) or MELPA
-(https://melpa.org/#/consult) via the Emacs built-in package manager.
-Alternatively it can be directly installed from the development
-repository via other non-standard package managers.
+(https://releases.melpa.org/#/consult) via the Emacs built-in package
+manager.  Alternatively it can be directly installed from the
+development repository via other non-standard package managers.
 
    There is the Consult wiki (https://github.com/minad/consult/wiki),
 where additional configuration examples can be contributed.
@@ -1611,22 +1611,22 @@ Node: Asynchronous search30009
 Node: Multiple sources33945
 Node: Embark integration38840
 Node: Configuration41058
-Node: Use-package example42168
-Node: Custom variables48491
-Node: Project support52422
-Node: Fine-tuning53685
-Node: Default completion UI with auto update56689
-Node: Recommended packages57785
-Node: Bug reports59906
-Node: Hacking62899
-Node: Creating simple commands63112
-Node: Creating asynchronous completion commands64743
-Node: Live preview66735
-Node: Contributions67930
-Node: Acknowledgments68694
-Node: Indices71225
-Node: Function index71461
-Node: Concept index75107
+Node: Use-package example42178
+Node: Custom variables48501
+Node: Project support52432
+Node: Fine-tuning53695
+Node: Default completion UI with auto update56699
+Node: Recommended packages57795
+Node: Bug reports59916
+Node: Hacking62909
+Node: Creating simple commands63122
+Node: Creating asynchronous completion commands64753
+Node: Live preview66745
+Node: Contributions67940
+Node: Acknowledgments68704
+Node: Indices71235
+Node: Function index71471
+Node: Concept index75117
 
 End Tag Table
 
