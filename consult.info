@@ -1188,9 +1188,9 @@ model fits best for you.
    • The builtin completion UI, which pops up the ‘*Completions*’
      buffer.
    • The builtin ‘icomplete-vertical-mode’.
-   • mct by Protesilaos Stavrou (https://git.sr.ht/~protesilaos/mct):
-     Minibuffer and Completions in Tandem, which builds on the default
-     completion UI.
+   • Mct (https://github.com/protesilaos/mct) by Protesilaos: Minibuffer
+     and Completions in Tandem, which builds on the default completion
+     UI.
 
    Note that all packages are independent and can be exchanged with
 alternative components, since there exist no hard dependencies.
@@ -1617,16 +1617,16 @@ Node: Project support52432
 Node: Fine-tuning53695
 Node: Default completion UI with auto update56699
 Node: Recommended packages57795
-Node: Bug reports59916
-Node: Hacking62909
-Node: Creating simple commands63122
-Node: Creating asynchronous completion commands64753
-Node: Live preview66745
-Node: Contributions67940
-Node: Acknowledgments68704
-Node: Indices71235
-Node: Function index71471
-Node: Concept index75117
+Node: Bug reports59908
+Node: Hacking62901
+Node: Creating simple commands63114
+Node: Creating asynchronous completion commands64745
+Node: Live preview66737
+Node: Contributions67932
+Node: Acknowledgments68696
+Node: Indices71227
+Node: Function index71463
+Node: Concept index75109
 
 End Tag Table
 
