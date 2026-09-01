@@ -4266,9 +4266,12 @@ Consult version supports preview of the selected string."
       (goto-char (prog1 (mark t)
                    (set-marker (mark-marker) (point) (current-buffer)))))))
 
-(put 'consult-yank-replace 'delete-selection 'yank)
-(put 'consult-yank-pop 'delete-selection 'yank)
-(put 'consult-yank-from-kill-ring 'delete-selection 'yank)
+;; NOTE: The autoload won't be necessary anymore in Emacs 32
+;;;###autoload
+(progn
+  (put 'consult-yank-replace 'delete-selection 'yank)
+  (put 'consult-yank-pop 'delete-selection 'yank)
+  (put 'consult-yank-from-kill-ring 'delete-selection 'yank))
 
 ;;;###autoload
 (defun consult-yank-pop (&optional arg)
