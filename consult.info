@@ -703,10 +703,12 @@ be added to this list.
 
    Either the ‘:items’ or the ‘:async’ source field is required:
    • ‘:items’ List of strings to select from or function returning list
-     of strings.  The strings can carry metadata in text properties,
-     which is then available to the ‘:annotate’, ‘:action’ and ‘:state’
-     functions.  The list can also consist of pairs, with the string in
-     the ‘car’ used for display and the ‘cdr’ the actual candidate.
+     of strings.  The function is only called for visible sources, such
+     that candidates are only computed on demand.  The strings can carry
+     metadata in text properties, which is then available to the
+     ‘:annotate’, ‘:action’ and ‘:state’ functions.  The list can also
+     consist of pairs, with the string in the ‘car’ used for display and
+     the ‘cdr’ the actual candidate.
    • ‘:async’ Alternative to ‘:items’ for asynchronous sources.  See the
      docstring for details.
 
@@ -1609,24 +1611,24 @@ Node: Live previews23954
 Node: Narrowing and grouping28008
 Node: Asynchronous search30009
 Node: Multiple sources33945
-Node: Embark integration38840
-Node: Configuration41086
-Node: Use-package example42206
-Node: Custom variables48529
-Node: Project support52460
-Node: Fine-tuning53723
-Node: Default completion UI with auto update56727
-Node: Recommended packages57823
-Node: Bug reports59955
-Node: Hacking62948
-Node: Creating simple commands63161
-Node: Creating asynchronous completion commands64792
-Node: Live preview66784
-Node: Contributions67979
-Node: Acknowledgments68743
-Node: Indices71274
-Node: Function index71510
-Node: Concept index75156
+Node: Embark integration38950
+Node: Configuration41196
+Node: Use-package example42316
+Node: Custom variables48639
+Node: Project support52570
+Node: Fine-tuning53833
+Node: Default completion UI with auto update56837
+Node: Recommended packages57933
+Node: Bug reports60065
+Node: Hacking63058
+Node: Creating simple commands63271
+Node: Creating asynchronous completion commands64902
+Node: Live preview66894
+Node: Contributions68089
+Node: Acknowledgments68853
+Node: Indices71384
+Node: Function index71620
+Node: Concept index75266
 
 End Tag Table
 

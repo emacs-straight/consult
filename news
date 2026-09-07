@@ -3,7 +3,14 @@
                           ━━━━━━━━━━━━━━━━━━━
 
 
-1 Version 3.8 (2026-09-03)
+1 Development
+═════════════
+
+  • `consult-buffer', `consult--multi': Populate sources lazily, such
+    that expensive hidden sources are not computed unnecessarily.
+
+
+2 Version 3.8 (2026-09-03)
 ══════════════════════════
 
   • `consult-completion-in-region': Support default completion UI if
@@ -12,7 +19,7 @@
   • `consult-focus-lines': Handle revert buffer.
 
 
-2 Version 3.7 (2026-08-05)
+3 Version 3.7 (2026-08-05)
 ══════════════════════════
 
   • `minibuffer-exit-hook': Internal refactoring of minibuffer-local
@@ -20,7 +27,7 @@
   • Use `completion-list-candidate-at-point' from Compat 31.
 
 
-3 Version 3.6 (2026-06-05)
+4 Version 3.6 (2026-06-05)
 ══════════════════════════
 
   • `consult--command-splitter': Require at least a single character
@@ -29,7 +36,7 @@
     options.
 
 
-4 Version 3.5 (2026-05-19)
+5 Version 3.5 (2026-05-19)
 ══════════════════════════
 
   • `consult-bookmark': Add support for shell bookmarks.
@@ -37,7 +44,7 @@
   • Require Compat 31.
 
 
-5 Version 3.4 (2026-03-09)
+6 Version 3.4 (2026-03-09)
 ══════════════════════════
 
   • Bugfixes.
@@ -47,7 +54,7 @@
     `consult-preview-at-point'.
 
 
-6 Version 3.3 (2026-01-18)
+7 Version 3.3 (2026-01-18)
 ══════════════════════════
 
   • *BREAKING CHANGE*: The syntax to pass options to `consult-ripgrep',
@@ -69,7 +76,7 @@
     variables `consult-source-*' instead.
 
 
-7 Version 3.2 (2026-01-12)
+8 Version 3.2 (2026-01-12)
 ══════════════════════════
 
   • Improve default completion UI support on Emacs 31.
@@ -78,7 +85,7 @@
     automatically.
 
 
-8 Version 3.1 (2025-11-29)
+9 Version 3.1 (2025-11-29)
 ══════════════════════════
 
   • `consult-line', `consult-line-multi', `consult-outline': Use lazy
@@ -94,8 +101,8 @@
     the `affixation-function' only.
 
 
-9 Version 3.0 (2025-11-15)
-══════════════════════════
+10 Version 3.0 (2025-11-15)
+═══════════════════════════
 
   • Make `consult-source-*' variables public. These variables are
     commonly customized via `consult-customize' and they are referenced
@@ -103,7 +110,7 @@
     `consult--source-*' variable aliases.
 
 
-10 Version 2.9 (2025-10-13)
+11 Version 2.9 (2025-10-13)
 ═══════════════════════════
 
   • Minor fixes.
@@ -112,7 +119,7 @@
     result.
 
 
-11 Version 2.8 (2025-09-08)
+12 Version 2.8 (2025-09-08)
 ═══════════════════════════
 
   • New command `consult-grep-match' based on `consult-compile-error',
@@ -122,16 +129,13 @@
   • `consult-compile-error': Remove `g' narrow key.
 
 
-12 Version 2.7 (2025-08-05)
+13 Version 2.7 (2025-08-05)
 ═══════════════════════════
 
   • `consult-buffer-list-function': New customizable variable to support
     frame or tab isolation (see `tab-bar-mode'). Set to
     `consult--frame-buffer-list' for frame isolation. Alternatively use
     buffer functions provided by packages like [beframe].
-  • `consult--source-other-buffer': Buffer source which lists all
-    buffers which missing from the list returned by
-    `consult-buffer-list-function'. If buffers are
   …  …
 
 

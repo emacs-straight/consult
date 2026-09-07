@@ -2161,49 +2161,42 @@ ASYNC is the asynchronous function or completion table."
 
 (defun consult--with-async-f (async body)
   "See `consult--with-async' for documentation."
-  (let (new-chunk orig-chunk)
-    (minibuffer-with-setup-hook
-        ;; Append such that we overwrite the completion style setting of
-        ;; `fido-mode'.  See `consult--async-split' and `consult--split-setup'.
-        (:append
-         (lambda ()
-           (when (consult--async-p async)
-             (setq new-chunk (max read-process-output-max consult--process-chunk)
-                   orig-chunk read-process-output-max
-                   read-process-output-max new-chunk)
-             (funcall async 'setup)
-             (let* ((mb (current-buffer))
-                    (fun (lambda ()
-                           (when-let* ((win (active-minibuffer-window)))
-                             (when (eq (window-buffer win) mb)
-                               (with-current-buffer mb
-                                 (let ((inhibit-modification-hooks t))
-                                   ;; Push input string to request refresh.
-                                   (funcall async (minibuffer-contents-no-properties))))))))
-                    ;; We use a symbol in order to avoid adding lambdas to
-                    ;; the hook variable.  Symbol indirection because of
-                    ;; bug#46407.
-                    (hook (make-symbol "consult--async-after-change"))
-                    (timer (timer-create)))
-               (timer-set-function timer fun)
-               ;; Delay modification hook to ensure that minibuffer is still
-               ;; alive after the change, such that we don't restart a new
-               ;; asynchronous search right before exiting the minibuffer.
-               (fset hook (lambda (&rest _)
-                            (unless (memq timer timer-list)
-                              (timer-set-time timer (current-time))
-                              (timer-activate timer))))
-               (add-hook 'after-change-functions hook nil 'local)
-               ;; Immediately start asynchronous computation. This may lead
-               ;; to problems unnecessary work if content is inserted shortly
-               ;; afterwards.
-               (funcall fun)))))
-      (let ((async (if (consult--async-p async) async (lambda (_) async))))
-        (unwind-protect
-            (funcall body async)
-          (funcall async 'destroy)
-          (when (and orig-chunk (eq read-process-output-max new-chunk))
-            (setq read-process-output-max orig-chunk)))))))
+  (minibuffer-with-setup-hook
+      ;; Append such that we overwrite the completion style setting of
+      ;; `fido-mode'.  See `consult--async-split' and `consult--split-setup'.
+      (:append
+       (lambda ()
+         (when (consult--async-p async)
+           (funcall async 'setup)
+           (let* ((mb (current-buffer))
+                  (fun (lambda ()
+                         (when-let* ((win (active-minibuffer-window)))
+                           (when (eq (window-buffer win) mb)
+                             (with-current-buffer mb
+                               (let ((inhibit-modification-hooks t))
+                                 ;; Push input string to request refresh.
+                                 (funcall async (minibuffer-contents-no-properties))))))))
+                  ;; We use a symbol in order to avoid adding lambdas to the
+                  ;; hook variable.  Symbol indirection because of bug#46407.
+                  (hook (make-symbol "consult--async-after-change"))
+                  (timer (timer-create)))
+             (timer-set-function timer fun)
+             ;; Delay modification hook to ensure that minibuffer is still alive
+             ;; after the change, such that we don't restart a new asynchronous
+             ;; search right before exiting the minibuffer.
+             (fset hook (lambda (&rest _)
+                          (unless (memq timer timer-list)
+                            (timer-set-time timer (current-time))
+                            (timer-activate timer))))
+             (add-hook 'after-change-functions hook nil 'local)
+             ;; Immediately start asynchronous computation. This may lead to
+             ;; problems unnecessary work if content is inserted shortly
+             ;; afterwards.
+             (funcall fun)))))
+    (let ((async (if (consult--async-p async) async (lambda (_) async))))
+      (unwind-protect
+          (funcall body async)
+        (funcall async 'destroy)))))
 
 (defun consult--async-sink ()
   "Asynchronous sink function."
@@ -2298,11 +2291,14 @@ restarted and defaults to `consult-async-input-debounce'."
                (funcall sink [indicator finished])))))))))
 
 (defun consult--async-static (items)
-  "Async function with static ITEMS."
+  "Async function with static ITEMS.
+ITEMS can be a function to compute candidates lazily."
   (consult--async-dynamic
    (lambda (input)
      (pcase-let ((`(,re . ,hl) (consult--compile-regexp
                                 input 'emacs completion-ignore-case)))
+       (when (functionp items)
+         (setq items (funcall items)))
        (if re
            (let* ((completion-regexp-list re)
                   (all (all-completions "" items)))
@@ -2489,7 +2485,7 @@ configured by `consult-async-split-style'."
 BUILDER is the command line builder function.
 PROPS are optional properties passed to `make-process'."
   (lambda (sink)
-    (let (proc proc-buf last-args count)
+    (let (proc proc-buf last-args count orig-limit)
       (lambda (action)
         (pcase action
           ((pred stringp)
@@ -2566,7 +2562,15 @@ PROPS are optional properties passed to `make-process'."
                                        :filter ,proc-filter
                                        :sentinel ,proc-sentinel)))))))
            nil)
+          ('setup
+           (when (> consult--process-chunk read-process-output-max)
+             (setq orig-limit read-process-output-max)
+             (setq-default read-process-output-max consult--process-chunk))
+           (funcall sink action))
           ((or 'cancel 'destroy)
+           (when (and (eq action 'destroy) orig-limit
+                      (eq read-process-output-max consult--process-chunk))
+             (setq-default read-process-output-max orig-limit))
            (when proc
              (delete-process proc)
              (kill-buffer proc-buf)
@@ -3027,10 +3031,6 @@ COMMAND is used for customization, defaulting to `this-command.'"
         ((or `(,k . ,_) k) (eq n k)))
     (not (plist-get src :hidden))))
 
-(defun consult--multi-predicate (sources cand)
-  "Predicate function called for each candidate CAND given SOURCES."
-  (consult--multi-visible-p (consult--multi-source sources cand)))
-
 (defun consult--multi-narrow (sources)
   "Return narrow list from SOURCES."
   (thread-last
@@ -3101,12 +3101,14 @@ COMMAND is used for customization, defaulting to `this-command.'"
       ;; Non-existing Tofu'ed candidate submitted, e.g., via Embark
       `(,(substring selected 0 -1) :match nil ,@(consult--multi-source sources selected)))))
 
-(defun consult--multi-items (idx src items)
-  "Create completion candidate strings from ITEMS.
+(defsubst consult--multi-items (src)
+  "Get static items from SRC."
+  (let ((items (plist-get src :items)))
+    (if (functionp items) (funcall items) items)))
+
+(defun consult--multi-format (idx src items)
+  "Format completion candidate strings from ITEMS.
 Attach source IDX and SRC properties to each item."
-  (unless (listp items)
-    (setq items (plist-get src :items)
-          items (if (functionp items) (funcall items) items)))
   (let ((face (plist-get src :face))
         (cat (or (plist-get src :category) 'general)))
     (cl-loop
@@ -3121,6 +3123,10 @@ Attach source IDX and SRC properties to each item."
          (add-face-text-property 0 len face t cand))
        cand))))
 
+(defun consult--multi-async-predicate (sources cand)
+  "Predicate function called for each candidate CAND given SOURCES."
+  (consult--multi-visible-p (consult--multi-source sources cand)))
+
 (defun consult--multi-async (sources)
   "Create async function from multi SOURCES."
   (consult--async-merge
@@ -3133,8 +3139,11 @@ Attach source IDX and SRC properties to each item."
            (consult--async-pipeline
             async
             (consult--async-transform
-             (apply-partially #'consult--multi-items idx src)))
-         (consult--async-static (consult--multi-items idx src t))))))))
+             (apply-partially #'consult--multi-format idx src)))
+         (consult--async-static
+          (lambda ()
+            (consult--multi-format
+             idx src (consult--multi-items src))))))))))
 
 (defun consult--multi-enabled-sources (sources)
   "Return vector of enabled SOURCES."
@@ -3181,13 +3190,27 @@ Attach source IDX and SRC properties to each item."
              (when selected-fun
                (funcall selected-fun 'return cand)))))))))
 
-(defun consult--multi-collection (sources)
-  "Static or asynchronous completion function from SOURCES."
-  (consult--with-increased-gc
-    (if (cl-loop for src across sources thereis (plist-get src :async))
-        (consult--multi-async sources)
-      (cl-loop for idx from 0 for src across sources nconc
-               (consult--multi-items idx src t)))))
+(defun consult--multi-static (sources)
+  "Static async function from multi SOURCES."
+  (let ((cache-items (make-vector (length sources) t))
+        cache-cands cache-vis)
+    (lambda (action)
+      (unless action
+        (let ((vis (cl-loop for src across sources collect
+                            (consult--multi-visible-p src))))
+          (unless (equal vis cache-vis)
+            (let ((cands (cl-loop
+                          for idx from 0 for src across sources
+                          if (consult--multi-visible-p src) nconc
+                          (consult--multi-format
+                           idx src
+                           (let ((cached (aref cache-items idx)))
+                             (if (listp cached)
+                                 cached
+                               (aset cache-items idx (consult--multi-items src))))))))
+              (setq cache-vis vis
+                    cache-cands cands)))
+          cache-cands)))))
 
 (defun consult--multi (sources &rest options)
   "Select from candidates taken from a list of SOURCES.
@@ -3209,13 +3232,15 @@ must be plists with the following fields.
 
 Either the :items or the :async source field is required:
 * :items - List of strings to select from or function returning list of
-  strings.  The strings can carry metadata in text properties, which is
-  then available to the :annotate, :action and :state functions.  The
-  list can also consist of pairs, with the string in the `car' used for
-  display and the `cdr' the actual candidate.
-* :async - Alternative to :items for asynchronous sources.  The function
-  receives an asynchronous sink and an action as argument as documented
-  by `consult--async-pipeline'.
+  strings.  The function is only called for visible sources, such that
+  candidates are only computed on demand.  The strings can carry
+  metadata in text properties, which is then available to the :annotate,
+  :action and :state functions.  The list can also consist of pairs,
+  with the string in the `car' used for display and the `cdr' the actual
+  candidate.
+* :async - Alternative to :items for asynchronous sources.  The curried
+  function receives an asynchronous sink and an action as argument as
+  documented by `consult--async-pipeline'.
 
 Optional source fields:
 * :name - Name of the source as a string, used for narrowing,
@@ -3237,15 +3262,16 @@ Optional source fields:
   case.  Note that the source is returned by `consult--multi'
   together with the selected candidate."
   (let* ((sources (consult--multi-enabled-sources sources))
-         (collection (consult--multi-collection sources))
+         (async (cl-loop for src across sources thereis (plist-get src :async)))
          (selected
           (apply #'consult--read
-                 collection
+                 (if async (consult--multi-async sources) (consult--multi-static sources))
                  (append
                   options
                   (list
                    :category    'multi-category
-                   :predicate   (apply-partially #'consult--multi-predicate sources)
+                   :async-wrap  (and async #'consult--async-wrap)
+                   :predicate   (and async (apply-partially #'consult--multi-async-predicate sources))
                    :annotate    (apply-partially #'consult--multi-annotate sources)
                    :group       (apply-partially #'consult--multi-group sources)
                    :lookup      (apply-partially #'consult--multi-lookup sources)
