@@ -1682,7 +1682,8 @@ The function can be used as the `:state' argument of `consult--read'."
 (defun consult--location-state (candidates)
   "Location state function.
 The cheap location markers from CANDIDATES are upgraded on window
-selection change to full Emacs markers."
+selection change to full Emacs markers.  CANDIDATES can also be an
+asynchronous completion table, a function taking a single argument."
   (let ((jump (consult--jump-state))
         (hook (make-symbol "consult--location-upgrade")))
     (fset hook
@@ -1690,7 +1691,7 @@ selection change to full Emacs markers."
             (unless (consult--completion-window-p)
               (remove-hook 'window-selection-change-functions hook)
               (mapc #'consult--get-location
-                    (if (functionp candidates) (funcall candidates) candidates)))))
+                    (if (functionp candidates) (funcall candidates nil) candidates)))))
     (lambda (action cand)
       (pcase action
         ('setup (add-hook 'window-selection-change-functions hook))
@@ -1895,12 +1896,17 @@ invoked, the state function will also be called with `exit' and
 
 ;;;; Narrowing and grouping
 
+(defun consult--group-prop (cand transform)
+  "Return title for CAND or TRANSFORM the candidate.
+The candidate must have a `consult--group' property."
+  (if transform cand (get-text-property 0 'consult--group cand)))
+
 (defun consult--prefix-group (cand transform)
   "Return title for CAND or TRANSFORM the candidate.
-The candidate must have a `consult--prefix-group' property."
+The candidate must have a `consult--group' property."
   (if transform
-      (substring cand (1+ (length (get-text-property 0 'consult--prefix-group cand))))
-    (get-text-property 0 'consult--prefix-group cand)))
+      (substring cand (1+ (length (get-text-property 0 'consult--group cand))))
+    (get-text-property 0 'consult--group cand)))
 
 (defun consult--type-group (types)
   "Return group function for TYPES."
@@ -2870,7 +2876,8 @@ PREVIEW-KEY are the preview keys."
       (consult--with-preview
           preview-key state
           (lambda (narrow input cand)
-            (funcall lookup cand (funcall table nil) input narrow))
+            (let ((consult--narrow narrow))
+              (funcall lookup cand (funcall table nil) input narrow)))
           (apply-partially #'run-hook-with-args-until-success
                            'consult--completion-candidate-hook)
           (pcase-exhaustive history
@@ -3071,16 +3078,16 @@ COMMAND is used for customization, defaulting to `this-command.'"
                                       consult-preview-key)))
                                  sources)))))
 
-(defun consult--multi-lookup (sources selected candidates _input narrow &rest _)
-  "Lookup SELECTED in CANDIDATES given SOURCES, with potential NARROW."
+(defun consult--multi-lookup (sources selected candidates &rest _)
+  "Lookup SELECTED in CANDIDATES given SOURCES."
   (if (or (string-blank-p selected)
           (not (consult--tofu-p (aref selected (1- (length selected))))))
       ;; Non-existing candidate without Tofu or default submitted (empty string)
       (let* ((src (cond
-                   (narrow (seq-find (lambda (src)
-                                       (let ((n (plist-get src :narrow)))
-                                         (eq (or (car-safe n) n -1) narrow)))
-                                     sources))
+                   (consult--narrow (seq-find (lambda (src)
+                                                (let ((n (plist-get src :narrow)))
+                                                  (eq (or (car-safe n) n -1) consult--narrow)))
+                                              sources))
                    ((seq-find (lambda (src) (plist-get src :default)) sources))
                    ((seq-find (lambda (src) (not (plist-get src :hidden))) sources))
                    ((aref sources 0))))
@@ -3789,7 +3796,7 @@ to `consult--buffer-query'."
      :initial (or initial
                   (and isearch-mode
                        (prog1 isearch-string (isearch-done))))
-     :state (consult--location-state (lambda () (funcall collection nil)))
+     :state (consult--location-state collection)
      :group #'consult--line-multi-group)))
 
 ;;;;; Command: consult-keep-lines
@@ -4048,9 +4055,8 @@ INITIAL is the initial input."
 
 ;;;;; Command: consult-goto-line
 
-(defun consult--goto-line-position (str msg)
-  "Transform input STR to line number.
-Print an error message with MSG function."
+(defun consult--goto-line-position (str)
+  "Transform input STR to line number."
   (save-match-data
     (if (and str (string-match "\\`\\([[:digit:]]+\\):?\\([[:digit:]]*\\)\\'" str))
         (let ((line (string-to-number (match-string 1 str)))
@@ -4064,7 +4070,7 @@ Print an error message with MSG function."
               (goto-char (min (+ (point) col) (pos-eol)))
               (point))))
       (when (and str (not (equal str "")))
-        (funcall msg "Please enter a number."))
+        (consult--minibuffer-message "Enter a number."))
       nil)))
 
 ;;;###autoload
@@ -4082,16 +4088,11 @@ command respects narrowing and the settings
     (consult--forbid-minibuffer)
     (consult--local-let ((display-line-numbers consult-goto-line-numbers)
                          (display-line-numbers-widen consult-line-numbers-widen))
-      (while (if-let* ((pos (consult--goto-line-position
-                             (consult--prompt
-                              :prompt "Go to line: "
-                              :history 'goto-line-history
-                              :state
-                              (let ((preview (consult--jump-preview)))
-                                (lambda (action str)
-                                  (funcall preview action
-                                           (consult--goto-line-position str #'ignore)))))
-                             #'consult--minibuffer-message)))
+      (while (if-let* ((pos (consult--prompt
+                             :prompt "Go to line: "
+                             :history 'goto-line-history
+                             :transform #'consult--goto-line-position
+                             :state (consult--jump-preview))))
                  (consult--jump pos)
                t)))))
 
@@ -4122,18 +4123,17 @@ command respects narrowing and the settings
 (defun consult-recent-file ()
   "Find recent file using `completing-read'."
   (interactive)
-  (find-file
-   (consult--read
-    (or
-     (mapcar #'consult--fast-abbreviate-file-name (bound-and-true-p recentf-list))
-     (user-error "No recent files, `recentf-mode' is %s"
-                 (if recentf-mode "enabled" "disabled")))
-    :prompt "Find recent file: "
-    :sort nil
-    :require-match t
-    :category 'file
-    :state (consult--file-preview)
-    :history 'file-name-history)))
+  (consult--read
+   (or
+    (mapcar #'consult--fast-abbreviate-file-name (bound-and-true-p recentf-list))
+    (user-error "No recent files, `recentf-mode' is %s"
+                (if recentf-mode "enabled" "disabled")))
+   :prompt "Find recent file: "
+   :sort nil
+   :require-match t
+   :category 'file
+   :state (consult--file-state)
+   :history 'file-name-history))
 
 ;;;;; Command: consult-mode-command
 
@@ -4246,30 +4246,24 @@ If no MODES are specified, use currently active major and minor modes."
   ;; `current-kill' updates `kill-ring' with interprogram paste, see
   ;; gh:minad/consult#443.
   (current-kill 0)
-  ;; Do not specify a :lookup function in order to preserve completion-styles
-  ;; highlighting of the current candidate. We have to perform a final lookup to
-  ;; obtain the original candidate which may be propertized with yank-specific
-  ;; properties, like 'yank-handler.
-  (consult--lookup-member
-   (consult--read
-    (consult--remove-dups
-     (or (if yank-from-kill-ring-rotate
-             (append kill-ring-yank-pointer
-                     (butlast kill-ring (length kill-ring-yank-pointer)))
-           kill-ring)
-         (user-error "Kill ring is empty")))
-    :prompt "Yank from kill-ring: "
-    :history t ;; disable history
-    :sort nil
-    :category 'kill-ring
-    :require-match t
-    :lookup #'consult--lookup-member
-    :state
-    (consult--insertion-preview
-     (point)
-     ;; If previous command is yank, hide previously yanked string
-     (or (and (eq last-command 'yank) (mark t)) (point))))
-   kill-ring))
+  (consult--read
+   (consult--remove-dups
+    (or (if yank-from-kill-ring-rotate
+            (append kill-ring-yank-pointer
+                    (butlast kill-ring (length kill-ring-yank-pointer)))
+          kill-ring)
+        (user-error "Kill ring is empty")))
+   :prompt "Yank from kill-ring: "
+   :history t ;; disable history
+   :sort nil
+   :category 'kill-ring
+   :require-match t
+   :lookup #'consult--lookup-member
+   :state
+   (consult--insertion-preview
+    (point)
+    ;; If previous command is yank, hide previously yanked string
+    (or (and (eq last-command 'yank) (mark t)) (point)))))
 
 ;; Adapted from the Emacs `yank-from-kill-ring' function.
 ;;;###autoload
@@ -4573,42 +4567,44 @@ starts a new Isearch session otherwise."
          (candidates (consult--isearch-history-candidates)))
     (unless isearch-mode (isearch-mode t))
     (with-isearch-suspended
-     (setq isearch-new-string
-           (consult--read
-            candidates
-            :prompt "I-search: "
-            :category 'consult-isearch-history
-            :history t ;; disable history
-            :sort nil
-            :initial isearch-string
-            :keymap consult-isearch-history-map
-            :annotate
-            (lambda (cand)
-              (consult--annotate-align
-               cand
-               (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
-            :group
-            (lambda (cand transform)
-              (if transform
-                  cand
-                (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
-            :lookup
-            (lambda (selected candidates &rest _)
-              (if-let* ((found (member selected candidates)))
-                  (substring (car found) 0 -1)
-                selected))
-            :state
-            (lambda (action cand)
-              (when (and (eq action 'preview) cand)
-                (setq isearch-string cand)
-                (isearch-update-from-string-properties cand)
-                (isearch-update)))
-            :narrow
-            (list :predicate
-                  (lambda (cand) (= (consult--tofu-get cand) consult--narrow))
-                  :keys consult--isearch-history-narrow))
-           isearch-new-message
-           (mapconcat #'isearch-text-char-description isearch-new-string "")))
+     (consult--read
+      candidates
+      :prompt "I-search: "
+      :category 'consult-isearch-history
+      :history t ;; disable history
+      :sort nil
+      :initial isearch-string
+      :keymap consult-isearch-history-map
+      :annotate
+      (lambda (cand)
+        (consult--annotate-align
+         cand
+         (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
+      :group
+      (lambda (cand transform)
+        (if transform
+            cand
+          (alist-get (consult--tofu-get cand) consult--isearch-history-narrow)))
+      :lookup
+      (lambda (selected candidates &rest _)
+        (if-let* ((found (member selected candidates)))
+            (substring (car found) 0 -1)
+          selected))
+      :state
+      (lambda (action cand)
+        (when cand
+          (pcase action
+            ('preview
+             (setq isearch-string cand)
+             (isearch-update-from-string-properties cand)
+             (isearch-update))
+            ('return
+             (setq isearch-new-string cand
+                   isearch-new-message (mapconcat #'isearch-text-char-description cand ""))))))
+      :narrow
+      (list :predicate
+            (lambda (cand) (= (consult--tofu-get cand) consult--narrow))
+            :keys consult--isearch-history-narrow)))
     ;; Setting `isearch-regexp' etc only works outside of `with-isearch-suspended'.
     (unless (plist-member (text-properties-at 0 isearch-string) 'isearch-regexp-function)
       (setq isearch-regexp t
@@ -4627,7 +4623,7 @@ starts a new Isearch session otherwise."
       (logior
        (ash (if (local-variable-if-set-p sym) ?l ?g) 8)
        (if (and (boundp sym) (symbol-value sym)) ?i ?o))
-      'consult--minor-mode-group
+      'consult--group
       (concat
        (if (local-variable-if-set-p sym) "Local " "Global ")
        (if (and (boundp sym) (symbol-value sym)) "On" "Off"))))
@@ -4663,9 +4659,7 @@ This is an alternative to `minor-mode-menu-from-indicator'."
     :prompt "Minor mode: "
     :require-match t
     :category 'minor-mode
-    :group
-    (lambda (cand transform)
-      (if transform cand (get-text-property 0 'consult--minor-mode-group cand)))
+    :group #'consult--group-prop
     :narrow
     (list :predicate
           (lambda (cand)
@@ -4689,19 +4683,28 @@ The command supports previewing the currently selected theme."
     (let* ((regexp (consult--regexp-filter
                     (mapcar (lambda (x) (if (stringp x) x (format "\\`%s\\'" x)))
                             consult-themes)))
-           (avail-themes (seq-filter
-                          (lambda (x) (string-match-p regexp (symbol-name x)))
-                          (cons 'default (custom-available-themes))))
+           (avail-themes
+            (cl-loop for dir in (custom-theme--load-path)
+                     for group = (file-name-nondirectory (directory-file-name dir))
+                     if (file-directory-p dir) nconc
+                     (cl-loop for file in (directory-files dir nil "-theme\\.el\\'")
+                              for name = (string-remove-suffix "-theme.el" file)
+                              for sym = (intern name)
+                              if (and (string-match-p regexp name)
+                                      (custom-theme-name-valid-p sym))
+                              collect (propertize name 'consult--group group))))
            (saved-theme (car custom-enabled-themes)))
+      (setq avail-themes (delete-consecutive-dups
+                          (sort (cons "default" avail-themes) #'string<)))
       (consult--read
-       (mapcar #'symbol-name avail-themes)
+       avail-themes
        :prompt "Theme: "
        :require-match t
        :category 'theme
        :history 'consult--theme-history
+       :group #'consult--group-prop
        :lookup (lambda (selected &rest _)
-                 (setq selected (and selected (intern-soft selected)))
-                 (or (and selected (car (memq selected avail-themes)))
+                 (or (and selected (intern-soft (car (member selected avail-themes))))
                      saved-theme))
        :state (lambda (action theme)
                 (with-selected-window (or (active-minibuffer-window)
@@ -5210,8 +5213,8 @@ BUILDER is the command line builder function."
                    (when highlight
                      (funcall highlight content))
                    (setq str (concat file sep line sep content))
-                   ;; Store file name in order to avoid allocations in `consult--prefix-group'
-                   (add-text-properties 0 file-len `(face consult-file consult--prefix-group ,file) str)
+                   ;; Store file name in order to avoid allocations in `consult--group'
+                   (add-text-properties 0 file-len `(face consult-file consult--group ,file) str)
                    (put-text-property (1+ file-len) (+ 1 file-len line-len) 'face 'consult-line-number str)
                    (when ctx
                      (add-face-text-property (+ 2 file-len line-len) (length str) 'consult-grep-context 'append str))
