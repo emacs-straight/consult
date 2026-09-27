@@ -3,7 +3,13 @@
                           ━━━━━━━━━━━━━━━━━━━
 
 
-1 Version 3.9 (2026-09-13)
+1 Version 3.10 (2026-09-26)
+═══════════════════════════
+
+  • Bugfixes.
+
+
+2 Version 3.9 (2026-09-13)
 ══════════════════════════
 
   • `consult-buffer', `consult--multi': Populate sources lazily, such
@@ -12,7 +18,7 @@
   • Minor internal refactoring.
 
 
-2 Version 3.8 (2026-09-03)
+3 Version 3.8 (2026-09-03)
 ══════════════════════════
 
   • `consult-completion-in-region': Support default completion UI if
@@ -21,7 +27,7 @@
   • `consult-focus-lines': Handle revert buffer.
 
 
-3 Version 3.7 (2026-08-05)
+4 Version 3.7 (2026-08-05)
 ══════════════════════════
 
   • `minibuffer-exit-hook': Internal refactoring of minibuffer-local
@@ -29,7 +35,7 @@
   • Use `completion-list-candidate-at-point' from Compat 31.
 
 
-4 Version 3.6 (2026-06-05)
+5 Version 3.6 (2026-06-05)
 ══════════════════════════
 
   • `consult--command-splitter': Require at least a single character
@@ -38,7 +44,7 @@
     options.
 
 
-5 Version 3.5 (2026-05-19)
+6 Version 3.5 (2026-05-19)
 ══════════════════════════
 
   • `consult-bookmark': Add support for shell bookmarks.
@@ -46,7 +52,7 @@
   • Require Compat 31.
 
 
-6 Version 3.4 (2026-03-09)
+7 Version 3.4 (2026-03-09)
 ══════════════════════════
 
   • Bugfixes.
@@ -56,7 +62,7 @@
     `consult-preview-at-point'.
 
 
-7 Version 3.3 (2026-01-18)
+8 Version 3.3 (2026-01-18)
 ══════════════════════════
 
   • *BREAKING CHANGE*: The syntax to pass options to `consult-ripgrep',
@@ -78,7 +84,7 @@
     variables `consult-source-*' instead.
 
 
-8 Version 3.2 (2026-01-12)
+9 Version 3.2 (2026-01-12)
 ══════════════════════════
 
   • Improve default completion UI support on Emacs 31.
@@ -87,8 +93,8 @@
     automatically.
 
 
-9 Version 3.1 (2025-11-29)
-══════════════════════════
+10 Version 3.1 (2025-11-29)
+═══════════════════════════
 
   • `consult-line', `consult-line-multi', `consult-outline': Use lazy
     fontification for completion candidates. This greatly reduces the
@@ -103,7 +109,7 @@
     the `affixation-function' only.
 
 
-10 Version 3.0 (2025-11-15)
+11 Version 3.0 (2025-11-15)
 ═══════════════════════════
 
   • Make `consult-source-*' variables public. These variables are
@@ -112,7 +118,7 @@
     `consult--source-*' variable aliases.
 
 
-11 Version 2.9 (2025-10-13)
+12 Version 2.9 (2025-10-13)
 ═══════════════════════════
 
   • Minor fixes.
@@ -121,7 +127,7 @@
     result.
 
 
-12 Version 2.8 (2025-09-08)
+13 Version 2.8 (2025-09-08)
 ═══════════════════════════
 
   • New command `consult-grep-match' based on `consult-compile-error',
@@ -131,7 +137,7 @@
   • `consult-compile-error': Remove `g' narrow key.
 
 
-13 Version 2.7 (2025-08-05)
+14 Version 2.7 (2025-08-05)
 ═══════════════════════════
 
   • `consult-buffer-list-function': New customizable variable to support
