@@ -7,7 +7,7 @@ START-INFO-DIR-ENTRY
 END-INFO-DIR-ENTRY
 
 
-File: consult.info,  Node: Top,  Next: Available commands,  Up: (dir)
+File: consult.info,  Node: Top,  Next: Screenshots,  Up: (dir)
 
 consult.el - Search and navigate via completing-read
 ****************************************************
@@ -56,6 +56,7 @@ together.
 
 * Menu:
 
+* Screenshots::
 * Available commands::           Navigation, search, editing commands and more
 * Special features::             Enhancements over built-in 'completing-read'
 * Configuration::                Example configuration and customization variables
@@ -113,9 +114,21 @@ Indices
 
 
 
-File: consult.info,  Node: Available commands,  Next: Special features,  Prev: Top,  Up: Top
+File: consult.info,  Node: Screenshots,  Next: Available commands,  Prev: Top,  Up: Top
 
-1 Available commands
+1 Screenshots
+*************
+
+Fig.  1: Command ‘consult-git-grep’
+
+   Fig.  2: Command ‘consult-imenu’
+
+   Fig.  3: Command ‘consult-line’
+
+
+File: consult.info,  Node: Available commands,  Next: Special features,  Prev: Screenshots,  Up: Top
+
+2 Available commands
 ********************
 
 Most Consult commands follow the meaningful naming scheme
@@ -148,7 +161,7 @@ their descriptions.
 
 File: consult.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available commands
 
-1.1 Virtual Buffers
+2.1 Virtual Buffers
 ===================
 
    • ‘consult-buffer’: Enhanced version of ‘switch-to-buffer’ with
@@ -192,7 +205,7 @@ File: consult.info,  Node: Virtual Buffers,  Next: Editing,  Up: Available comma
 
 File: consult.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up: Available commands
 
-1.2 Editing
+2.2 Editing
 ===========
 
    • ‘consult-yank-from-kill-ring’: Enhanced version of ‘yank’ to select
@@ -210,7 +223,7 @@ File: consult.info,  Node: Editing,  Next: Register,  Prev: Virtual Buffers,  Up
 
 File: consult.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Available commands
 
-1.3 Register
+2.3 Register
 ============
 
    • ‘consult-register’: Select from list of registers.  The command
@@ -241,7 +254,7 @@ File: consult.info,  Node: Register,  Next: Navigation,  Prev: Editing,  Up: Ava
 
 File: consult.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Available commands
 
-1.4 Navigation
+2.4 Navigation
 ==============
 
    • ‘consult-goto-line’: Jump to line number enhanced with live
@@ -265,7 +278,7 @@ File: consult.info,  Node: Navigation,  Next: Search,  Prev: Register,  Up: Avai
 
 File: consult.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up: Available commands
 
-1.5 Search
+2.5 Search
 ==========
 
    • ‘consult-line’: Enter search string and select from matching lines.
@@ -298,7 +311,7 @@ File: consult.info,  Node: Search,  Next: Grep and Find,  Prev: Navigation,  Up:
 
 File: consult.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up: Available commands
 
-1.6 Grep and Find
+2.6 Grep and Find
 =================
 
    • ‘consult-grep-match’: Jump to a Grep match in related Grep buffers.
@@ -337,7 +350,7 @@ File: consult.info,  Node: Grep and Find,  Next: Compilation,  Prev: Search,  Up
 
 File: consult.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find,  Up: Available commands
 
-1.7 Compilation
+2.7 Compilation
 ===============
 
    • ‘consult-compile-error’: Jump to a compilation error in related
@@ -353,7 +366,7 @@ File: consult.info,  Node: Compilation,  Next: Histories,  Prev: Grep and Find, 
 
 File: consult.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Available commands
 
-1.8 Histories
+2.8 Histories
 =============
 
    • ‘consult-complex-command’: Select a command from the
@@ -376,7 +389,7 @@ File: consult.info,  Node: Histories,  Next: Modes,  Prev: Compilation,  Up: Ava
 
 File: consult.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Available commands
 
-1.9 Modes
+2.9 Modes
 =========
 
    • ‘consult-minor-mode-menu’: Enable/disable minor mode.  Supports
@@ -389,7 +402,7 @@ File: consult.info,  Node: Modes,  Next: Org Mode,  Prev: Histories,  Up: Availa
 
 File: consult.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available commands
 
-1.10 Org Mode
+2.10 Org Mode
 =============
 
    • ‘consult-org-heading’: Variant of ‘consult-imenu’ or
@@ -404,7 +417,7 @@ File: consult.info,  Node: Org Mode,  Next: Help,  Prev: Modes,  Up: Available c
 
 File: consult.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Available commands
 
-1.11 Help
+2.11 Help
 =========
 
    • ‘consult-man’: Find Unix man page, via Unix ‘apropos’ or ‘man -k’.
@@ -429,7 +442,7 @@ File: consult.info,  Node: Help,  Next: Miscellaneous,  Prev: Org Mode,  Up: Ava
 
 File: consult.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
-1.12 Miscellaneous
+2.12 Miscellaneous
 ==================
 
    • ‘consult-theme’: Select a theme and disable all currently enabled
@@ -456,7 +469,7 @@ File: consult.info,  Node: Miscellaneous,  Prev: Help,  Up: Available commands
 
 File: consult.info,  Node: Special features,  Next: Configuration,  Prev: Available commands,  Up: Top
 
-2 Special features
+3 Special features
 ******************
 
 Consult enhances ‘completing-read’ with live previews of candidates,
@@ -480,7 +493,7 @@ advanced features.
 
 File: consult.info,  Node: Live previews,  Next: Narrowing and grouping,  Up: Special features
 
-2.1 Live previews
+3.1 Live previews
 =================
 
 Some Consult commands support live previews.  For example when you
@@ -560,7 +573,7 @@ experience.
 
 File: consult.info,  Node: Narrowing and grouping,  Next: Asynchronous search,  Prev: Live previews,  Up: Special features
 
-2.2 Narrowing and grouping
+3.2 Narrowing and grouping
 ==========================
 
 Consult has special support for candidate groups.  If the completion UI
@@ -595,7 +608,7 @@ keys are automatically shown in the which-key window after pressing the
 
 File: consult.info,  Node: Asynchronous search,  Next: Multiple sources,  Prev: Narrowing and grouping,  Up: Special features
 
-2.3 Asynchronous search
+3.3 Asynchronous search
 =======================
 
 Consult has support for asynchronous generation of candidate lists.
@@ -680,7 +693,7 @@ status:
 
 File: consult.info,  Node: Multiple sources,  Next: Embark integration,  Prev: Asynchronous search,  Up: Special features
 
-2.4 Multiple sources
+3.4 Multiple sources
 ====================
 
 Multiple static and asynchronous candidate sources can be combined.
@@ -786,7 +799,7 @@ used to create new multi-source commands.
 
 File: consult.info,  Node: Embark integration,  Prev: Multiple sources,  Up: Special features
 
-2.5 Embark integration
+3.5 Embark integration
 ======================
 
 *NOTE*: Install the ‘embark-consult’ package from MELPA, which provides
@@ -831,7 +844,7 @@ three workflows are symmetric.
 
 File: consult.info,  Node: Configuration,  Next: Recommended packages,  Prev: Special features,  Up: Top
 
-3 Configuration
+4 Configuration
 ***************
 
 Consult can be installed from ELPA
@@ -859,7 +872,7 @@ binding, since they use lambdas and closures.
 
 File: consult.info,  Node: Use-package example,  Next: Custom variables,  Up: Configuration
 
-3.1 Use-package example
+4.1 Use-package example
 =======================
 
 The Consult package only provides commands and does not add any
@@ -982,7 +995,7 @@ additional configuration examples.
 
 File: consult.info,  Node: Custom variables,  Next: Project support,  Prev: Use-package example,  Up: Configuration
 
-3.2 Custom variables
+4.2 Custom variables
 ====================
 
 *TIP:* If you have Marginalia (https://github.com/minad/marginalia)
@@ -1040,7 +1053,7 @@ consult-widen-key                  Widening key during completion
 
 File: consult.info,  Node: Project support,  Next: Workspace isolation,  Prev: Custom variables,  Up: Configuration
 
-3.3 Project support
+4.3 Project support
 ===================
 
 Multiple Consult search commands like ‘consult-grep’ try to discover the
@@ -1067,7 +1080,7 @@ possible to configure alternative methods via the customization variable
 
 File: consult.info,  Node: Workspace isolation,  Next: Fine-tuning,  Prev: Project support,  Up: Configuration
 
-3.4 Workspace isolation
+4.4 Workspace isolation
 =======================
 
 By default Consult operates on all buffers in your Emacs instance, as
@@ -1088,7 +1101,7 @@ with your favored solution for workspaces and buffer isolation.
 
 File: consult.info,  Node: Fine-tuning,  Next: Default completion UI with auto update,  Prev: Workspace isolation,  Up: Configuration
 
-3.5 Fine-tuning of individual commands
+4.5 Fine-tuning of individual commands
 ======================================
 
 *NOTE:* Consult supports fine-grained customization of individual
@@ -1158,7 +1171,7 @@ by the following techniques:
 
 File: consult.info,  Node: Default completion UI with auto update,  Prev: Fine-tuning,  Up: Configuration
 
-3.6 Default completion UI with auto update
+4.6 Default completion UI with auto update
 ==========================================
 
 I recommend to use Vertico for best performance and an intuitive UI.
@@ -1188,7 +1201,7 @@ following configuration on Emacs 31:
 
 File: consult.info,  Node: Recommended packages,  Next: Bug reports,  Prev: Configuration,  Up: Top
 
-4 Recommended packages
+5 Recommended packages
 **********************
 
 I use and recommend this combination of packages:
@@ -1234,7 +1247,7 @@ with other packages in the wider Emacs ecosystem.
 
 File: consult.info,  Node: Bug reports,  Next: Hacking,  Prev: Recommended packages,  Up: Top
 
-5 Bug reports
+6 Bug reports
 *************
 
 If you find a bug or suspect that there is a problem with Consult,
@@ -1297,7 +1310,7 @@ lexical binding.  Consult relies on lambdas and lexical closures.
 
 File: consult.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  Up: Top
 
-6 Hacking
+7 Hacking
 *********
 
 * Menu:
@@ -1309,7 +1322,7 @@ File: consult.info,  Node: Hacking,  Next: Contributions,  Prev: Bug reports,  U
 
 File: consult.info,  Node: Creating simple commands,  Next: Creating asynchronous completion commands,  Up: Hacking
 
-6.1 Creating simple commands
+7.1 Creating simple commands
 ============================
 
 When creating simple commands you can either use ‘consult--read’ or
@@ -1363,7 +1376,7 @@ look up the value.
 
 File: consult.info,  Node: Creating asynchronous completion commands,  Next: Live preview,  Prev: Creating simple commands,  Up: Hacking
 
-6.2 Creating asynchronous completion commands
+7.2 Creating asynchronous completion commands
 =============================================
 
 If you have a completion source that's both dynamic and expensive to
@@ -1415,7 +1428,7 @@ sources.  Specify them as ‘:async’ field of the source plist.
 
 File: consult.info,  Node: Live preview,  Prev: Creating asynchronous completion commands,  Up: Hacking
 
-6.3 Live preview
+7.3 Live preview
 ================
 
 Implementing live preview requires the definition of a state or preview
@@ -1448,7 +1461,7 @@ action argument.  Once defined, we can use this preview function in
 
 File: consult.info,  Node: Contributions,  Next: Acknowledgments,  Prev: Hacking,  Up: Top
 
-7 Contributions
+8 Contributions
 ***************
 
 Consult is a community effort, please participate in the discussions.
@@ -1465,7 +1478,7 @@ configuration or command snippets.
 
 File: consult.info,  Node: Acknowledgments,  Next: Indices,  Prev: Contributions,  Up: Top
 
-8 Acknowledgments
+9 Acknowledgments
 *****************
 
 This package took inspiration from Counsel
@@ -1515,8 +1528,8 @@ Manuel Uberti (https://github.com/manuel-uberti), Stefan Monnier
 
 File: consult.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
-9 Indices
-*********
+10 Indices
+**********
 
 * Menu:
 
@@ -1526,8 +1539,8 @@ File: consult.info,  Node: Indices,  Prev: Acknowledgments,  Up: Top
 
 File: consult.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
-9.1 Function index
-==================
+10.1 Function index
+===================
 
  [index ]
 * Menu:
@@ -1584,8 +1597,8 @@ File: consult.info,  Node: Function index,  Next: Concept index,  Up: Indices
 
 File: consult.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
-9.2 Concept index
-=================
+10.2 Concept index
+==================
 
  [index ]
 * Menu:
@@ -1616,43 +1629,44 @@ File: consult.info,  Node: Concept index,  Prev: Function index,  Up: Indices
 
 Tag Table:
 Node: Top221
-Node: Available commands5312
-Node: Virtual Buffers6887
-Node: Editing9062
-Node: Register9916
-Node: Navigation11635
-Node: Search12876
-Node: Grep and Find14785
-Node: Compilation17198
-Node: Histories17908
-Node: Modes19126
-Node: Org Mode19604
-Node: Help20218
-Node: Miscellaneous21420
-Node: Special features22851
-Node: Live previews23978
-Node: Narrowing and grouping28032
-Node: Asynchronous search30033
-Node: Multiple sources33969
-Node: Embark integration38974
-Node: Configuration41220
-Node: Use-package example42364
-Node: Custom variables48687
-Node: Project support52618
-Node: Workspace isolation53889
-Node: Fine-tuning54836
-Node: Default completion UI with auto update57844
-Node: Recommended packages58940
-Node: Bug reports61072
-Node: Hacking64065
-Node: Creating simple commands64278
-Node: Creating asynchronous completion commands65909
-Node: Live preview67901
-Node: Contributions69096
-Node: Acknowledgments69860
-Node: Indices72391
-Node: Function index72627
-Node: Concept index76273
+Node: Screenshots5321
+Node: Available commands5563
+Node: Virtual Buffers7146
+Node: Editing9321
+Node: Register10175
+Node: Navigation11894
+Node: Search13135
+Node: Grep and Find15044
+Node: Compilation17457
+Node: Histories18167
+Node: Modes19385
+Node: Org Mode19863
+Node: Help20477
+Node: Miscellaneous21679
+Node: Special features23110
+Node: Live previews24237
+Node: Narrowing and grouping28291
+Node: Asynchronous search30292
+Node: Multiple sources34228
+Node: Embark integration39233
+Node: Configuration41479
+Node: Use-package example42623
+Node: Custom variables48946
+Node: Project support52877
+Node: Workspace isolation54148
+Node: Fine-tuning55095
+Node: Default completion UI with auto update58103
+Node: Recommended packages59199
+Node: Bug reports61331
+Node: Hacking64324
+Node: Creating simple commands64537
+Node: Creating asynchronous completion commands66168
+Node: Live preview68160
+Node: Contributions69355
+Node: Acknowledgments70119
+Node: Indices72650
+Node: Function index72888
+Node: Concept index76536
 
 End Tag Table
 
